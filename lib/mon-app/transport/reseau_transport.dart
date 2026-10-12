@@ -1,0 +1,139 @@
+import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_ctrof.dart';
+import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_elitis.dart';
+import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_rahimo.dart';
+import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_rakieta.dart';
+import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_saramaya.dart';
+import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_staf.dart';
+import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_tcv.dart';
+import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_tsr.dart';
+
+/// Une gare précise proposant un trajet, avec ses propres horaires et
+/// son propre tarif — le nom de la gare est ce qui s'affiche en premier
+/// sur chaque carte de trajet.
+class DepartGare {
+  const DepartGare({
+    required this.quartier,
+    required this.horaires,
+    required this.prixTicket,
+    this.dureeMax = '—',
+    this.telephone = '',
+    this.adresse = '',
+    this.latitude = 0,
+    this.longitude = 0,
+  });
+
+  final String quartier;
+  final List<String> horaires;
+  final int prixTicket;
+  final String dureeMax;
+  final String telephone;
+  final String adresse;
+  final double latitude;
+  final double longitude;
+}
+
+/// Une destination, avec une ou plusieurs gares qui la desservent.
+class RouteOption {
+  const RouteOption({required this.destination, required this.gares});
+  final String destination;
+  final List<DepartGare> gares;
+}
+
+class CompagnieReseau {
+  const CompagnieReseau({
+    required this.routesParVille,
+    this.tarifsInternational = const {},
+  });
+  final Map<String, List<RouteOption>> routesParVille;
+  final Map<String, int> tarifsInternational;
+}
+
+String _normalize(String s) {
+  const from = 'àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ';
+  const to = 'aaaeeeeiioouuucAAAEEEEIIOOUUUC';
+  final buffer = StringBuffer();
+  for (final ch in s.trim().toLowerCase().split('')) {
+    final i = from.indexOf(ch);
+    buffer.write(i >= 0 ? to[i] : ch);
+  }
+  return buffer.toString();
+}
+
+/// Registre : une compagnie sans données réelles n'a simplement pas
+/// d'entrée ici.
+final Map<String, CompagnieReseau> _reseaux = {
+  'staf': staf,
+  'tsr': tsr,
+  'elitis': elitis,
+  'rahimo': rahimo,
+  'saramaya': saramaya,
+  'tcv': tcv,
+  'rakieta': rakieta,
+  'ctrof': ctrof,
+};
+
+List<RouteOption> routesDepuis(String compagnieId, String ville) =>
+    _reseaux[compagnieId]?.routesParVille[_normalize(ville)] ?? const [];
+
+int prixInternational(String compagnieId, String ville) {
+  final prix = _reseaux[compagnieId]?.tarifsInternational[_normalize(ville)];
+  return prix ?? prixTicketInternational;
+}
+
+const int prixTicketInternational = 25000;
+const List<String> horairesInternationalDefaut = ['07h00', '13h00', '19h00'];
+
+/// Noms d'affichage des villes de départ couvertes. Corrigé : chaque
+/// clé a bien sa propre valeur séparée par une virgule.
+const Map<String, String> _nomsVilles = {
+  'ouagadougou': 'Ouagadougou',
+  'bobo-dioulasso': 'Bobo-Dioulasso',
+  'banfora': 'Banfora',
+  "fada n'gourma": "Fada N'Gourma",
+};
+
+List<String> villesDepartDisponibles(String compagnieId) {
+  final reseau = _reseaux[compagnieId];
+  if (reseau == null) return const [];
+  final villes =
+      reseau.routesParVille.keys.map((key) => _nomsVilles[key] ?? key).toList()
+        ..sort();
+  return villes;
+}
+
+//Coordonnées des quartier pour les gares connues,
+
+const Map<String, (double, double)> _coordsParMotCle = {
+  'gounghin': (12.362, -1.514),
+  'larlé': (12.377, -1.529),
+  'larle': (12.377, -1.529),
+  'wemtenga': (12.352, -1.496),
+  'paglayiri': (12.335, -1.481),
+  "patte d'oie": (12.335, -1.481),
+  'saaba': (12.368, -1.442),
+  'pissy': (12.352, -1.567),
+  'zad': (12.383, -1.487),
+  'tampouy': (12.402, -1.551),
+  'dassasgho': (12.375, -1.480),
+  'charles de gaulle': (12.368, -1.498),
+  'kalgondin': (12.386, -1.490),
+  'tanghin': (12.402, -1.540),
+  'oscar yaar': (12.363, -1.512),
+  "gare de l'est": (12.380, -1.470),
+  "fada n'gourma": (12.061, 0.359),
+  'tounouma': (11.175, -4.300),
+  'zone résidentielle b': (11.180, -4.295),
+  'zone residentielle b': (11.180, -4.295),
+  'bobo': (11.178, -4.297),
+  'banfora': (10.633, -4.767),
+};
+
+// Coordonnées d'une gare
+(double, double)? coordsPour(DepartGare g) {
+  if (g.latitude != 0 || g.longitude != 0) return (g.latitude, g.longitude);
+  final nom = g.quartier.toLowerCase();
+  for (final entry in _coordsParMotCle.entries) {
+    if (nom.contains(entry.key)) return entry.value;
+  }
+  return null;
+}

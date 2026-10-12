@@ -1,0 +1,89 @@
+name: kmaa_e_tickets
+description: "A new Flutter project."
+
+
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  video_player: ^2.9.2
+  qr_flutter: ^4.1.0
+  pdf: ^3.10.8
+  printing: ^5.12.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  url_launcher: ^6.3.0
+  # notifs et auth via whatsapp et logique de connexion facebook
+  http: ^1.2.0
+  crypto: ^3.0.3
+
+  # alerte avec voix feminine et rappel programmer pour chaque user
+  flutter_tts: ^4.1.0
+  vibration: ^2.0.0
+  flutter_local_notifications: ^18.0.0
+  timezone: ^0.9.4
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+
+  flutter_lints: ^6.0.0
+
+
+flutter:
+
+
+  uses-material-design: true
+
+
+  assets:
+    - assets/images/logo_converge.png
+    - assets/images/logo/logo.png    
+    - assets/videos/welcome.mp4
+    - assets/images/compagnies/staf.png
+    - assets/images/compagnies/rahimo.png
+    - assets/images/compagnies/elitis.png
+    - assets/images/compagnies/saramaya.png
+    - assets/images/compagnies/ctrof.png
+    - assets/images/compagnies/sbta.png
+    - assets/images/compagnies/tcv.png
+    - assets/images/compagnies/tsr.png
+    - assets/images/compagnies/rakieta.png
+
+
+    - assets/images/operateurs/visa.png
+    - assets/images/operateurs/coris.png
+    - assets/images/operateurs/telecel.png
+    - assets/images/operateurs/moov.png
+    - assets/images/operateurs/orange.png
+    
+
+
+
+  # example:
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
+  #   - family: Trajan Pro
+  #     fonts:
+  #       - asset: fonts/TrajanPro.ttf
+  #       - asset: fonts/TrajanPro_Bold.ttf
+  #         weight: 700
+  #
+  # For details regarding fonts from package dependencies,
+  # see https://flutter.dev/to/font-from-package

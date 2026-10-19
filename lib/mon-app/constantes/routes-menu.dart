@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:kmaa_e_tickets/mon-app/billet/mes_billets.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/menu.dart';
+import 'package:kmaa_e_tickets/mon-app/forgot_password/forgot-password.dart';
 import 'package:kmaa_e_tickets/mon-app/home/compagnie-detail.dart';
 import 'package:kmaa_e_tickets/mon-app/home/compagnie.dart';
 import 'package:kmaa_e_tickets/mon-app/home/home.dart';
 import 'package:kmaa_e_tickets/mon-app/login/login.dart';
 import 'package:kmaa_e_tickets/mon-app/notification/ecran_notification.dart';
 import 'package:kmaa_e_tickets/mon-app/profil-user/ecran_profile.dart';
+import 'package:kmaa_e_tickets/mon-app/profil-user/profil_user.dart';
 import 'package:kmaa_e_tickets/mon-app/register/register.dart';
 
 /// Centralise les noms de routes, la table de routage et la navigation
@@ -21,14 +23,29 @@ class AppRoutes {
   static const String billets = '/billets';
   static const String notifications = '/notifications';
   static const String profil = '/profil';
+  // nouveau forgot password
+  static const String forgotPassword = '/forgot-password';
 
   /// À passer directement à MaterialApp.routes.
   static Map<String, WidgetBuilder> get routes => {
     login: (context) => const Login(),
     signup: (context) => const SignUpScreen(),
+    // home: (context) {
+    //   final args = _args(context);
+    //   return Home(lastName: args['nom'] ?? '', firstName: args['prenom'] ?? '');
+    // },
     home: (context) {
       final args = _args(context);
-      return Home(lastName: args['nom'] ?? '', firstName: args['prenom'] ?? '');
+      final profil = UserStore.instance.profile.value;
+      // Si l'écran précédent n'a pas transmis les noms, on prend ceux du profil enregistré.
+      return Home(
+        lastName: (args['nom'] ?? '').isNotEmpty
+            ? args['nom']!
+            : (profil?.nom ?? ''),
+        firstName: (args['prenom'] ?? '').isNotEmpty
+            ? args['prenom']!
+            : (profil?.prenom ?? ''),
+      );
     },
     // menu lateral des billets
     billets: (context) => const MesBillets(),
@@ -38,6 +55,8 @@ class AppRoutes {
     notifications: (context) => const NotificationsScreen(),
     // route pour le profil
     profil: (context) => const ProfilScreen(),
+    // routes pour le mot de passe oublié
+    forgotPassword: (context) => const ForgotPasswordScreen(),
   };
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {

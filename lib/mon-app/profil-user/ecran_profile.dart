@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
 import 'package:kmaa_e_tickets/mon-app/billet/billet.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/menu.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/routes-menu.dart';
 import 'package:kmaa_e_tickets/mon-app/profil-user/profil_user.dart';
-import 'package:kmaa_e_tickets/mon-app/verification_agent_gare/verification_agent_gare.dart';
 
 class ProfilScreen extends StatelessWidget {
   const ProfilScreen({super.key});
@@ -45,24 +45,34 @@ class ProfilScreen extends StatelessWidget {
                       'Moyens de paiement utilisés',
                       () => _showMoyensPaiement(context),
                     ),
-                    _buildSwitchTile(
-                      Icons.notifications_active_outlined,
-                      'Rappels de départ',
-                      p.recevoirRappels,
-                      (v) => UserStore.instance.save(
-                        p.copyWith(recevoirRappels: v),
-                      ),
-                    ),
+                    // _buildSwitchTile(
+                    //   Icons.notifications_active_outlined,
+                    //   'Rappels de départ',
+                    //   p.recevoirRappels,
+                    //   (v) => UserStore.instance.save(
+                    //     p.copyWith(recevoirRappels: v),
+                    //   ),
+                    // ),
+                    // if (kDebugMode)
+                    // _buildTile(
+                    //   Icons.qr_code_scanner,
+                    //   'Vérifier un ticket (agent)',
+                    //   () => Navigator.of(context).push(
+                    //     MaterialPageRoute(
+                    //       builder: (_) => const VerifierBilletScreen(),
+                    //     ),
+                    //   ),
+                    // ),
                     //agent verification pour le moment
-                    _buildTile(
-                      Icons.qr_code_scanner,
-                      'Vérifier un ticket (agent)',
-                      () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const VerifierBilletScreen(),
-                        ),
-                      ),
-                    ),
+                    // _buildTile(
+                    //   Icons.qr_code_scanner,
+                    //   'Vérifier un ticket (agent)',
+                    //   () => Navigator.of(context).push(
+                    //     MaterialPageRoute(
+                    //       builder: (_) => const VerifierBilletScreen(),
+                    //     ),
+                    //   ),
+                    // ),
                   ]),
                   const SizedBox(height: 20),
                   _buildSection('Application', [
@@ -272,27 +282,6 @@ class ProfilScreen extends StatelessWidget {
 
   // ───────────── Déconnexion ─────────────
 
-  // Widget _buildLogoutButton(BuildContext context) {
-  //   return SizedBox(
-  //     width: double.infinity,
-  //     height: 50,
-  //     child: OutlinedButton.icon(
-  //       onPressed: () => Navigator.of(
-  //         context,
-  //       ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false),
-  //       style: OutlinedButton.styleFrom(
-  //         side: const BorderSide(color: AppColors.error),
-  //         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-  //       ),
-  //       icon: const Icon(Icons.logout, color: AppColors.error, size: 18),
-  //       label: const Text(
-  //         'Se déconnecter',
-  //         style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w700),
-  //       ),
-  //     ),
-  //   );
-  // }
-
   Widget _buildLogoutButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
@@ -325,105 +314,160 @@ class ProfilScreen extends StatelessWidget {
     final nomCtrl = TextEditingController(text: p.nom);
     final telCtrl = TextEditingController(text: p.telephone);
     final emailCtrl = TextEditingController(text: p.email);
+    var enCours = false;
+    String? erreur;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
           ),
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Mes informations',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textDark,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: prenomCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Prénom',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nomCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Nom',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: telCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Téléphone',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email (facultatif)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    gradient: AppColors.buttonGradient,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Mes informations',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textDark,
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: prenomCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Prénom',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nomCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Nom',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: telCtrl,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Téléphone',
+                    helperText:
+                        'Ce numéro sert à vous connecter : il ne peut pas être modifié ici.',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email (facultatif, gardé sur cet appareil)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                if (erreur != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    erreur!,
+                    style: const TextStyle(
+                      color: AppColors.error,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      onTap: () {
-                        UserStore.instance.save(
-                          p.copyWith(
-                            prenom: prenomCtrl.text.trim(),
-                            nom: nomCtrl.text.trim(),
-                            telephone: telCtrl.text.trim(),
-                            email: emailCtrl.text.trim(),
-                          ),
-                        );
-                        Navigator.of(sheetContext).pop();
-                      },
-                      child: const Center(
-                        child: Text(
-                          'Enregistrer',
-                          style: TextStyle(
-                            color: AppColors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
+                      gradient: AppColors.buttonGradient,
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: enCours
+                            ? null
+                            : () async {
+                                final prenom = prenomCtrl.text.trim();
+                                final nom = nomCtrl.text.trim();
+                                if (prenom.length < 2 || nom.length < 2) {
+                                  setSheet(
+                                    () => erreur =
+                                        'Prénom et nom : 2 caractères minimum.',
+                                  );
+                                  return;
+                                }
+
+                                setSheet(() {
+                                  enCours = true;
+                                  erreur = null;
+                                });
+                                try {
+                                  await ApiService.instance.modifierProfil(
+                                    prenom: prenom,
+                                    nom: nom,
+                                  );
+                                  await UserStore.instance.save(
+                                    p.copyWith(
+                                      prenom: prenom,
+                                      nom: nom,
+                                      email: emailCtrl.text.trim(),
+                                    ),
+                                  );
+                                  if (sheetContext.mounted) {
+                                    Navigator.of(sheetContext).pop();
+                                  }
+                                } on ApiException catch (e) {
+                                  if (sheetContext.mounted) {
+                                    setSheet(() {
+                                      enCours = false;
+                                      erreur = e.message;
+                                    });
+                                  }
+                                }
+                              },
+                        child: Center(
+                          child: enCours
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: AppColors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Enregistrer',
+                                  style: TextStyle(
+                                    color: AppColors.white,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

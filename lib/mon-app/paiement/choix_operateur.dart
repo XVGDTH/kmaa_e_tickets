@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
 import 'package:kmaa_e_tickets/mon-app/billet/billet.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/home/compagnie.dart';
@@ -71,119 +72,115 @@ class _ChoixOperateurState extends State<ChoixOperateur> {
 
   Future<void> _onPay() async {
     if (_selected == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choisissez un moyen de paiement.')),
-      );
+      _message('Choisissez un moyen de paiement.');
       return;
     }
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _processing = true);
 
+    // Simulation du paiement (sera remplacée par LigdiCash).
     await Future.delayed(const Duration(milliseconds: 1400));
+    if (!mounted) return;
+
+    if (_step == _Step.taxe) {
+      setState(() {
+        _processing = false;
+        _step = _Step.transport;
+      });
+      _message('Taxe de ${Tarif.format(widget.taxe)} payée avec succès.');
+      return;
+    }
+
+    // Étape finale : le serveur crée le billet (prix, taxe et places contrôlés par lui).
+    final routeId = widget.gare?.routeId;
+    if (routeId == null) {
+      setState(() => _processing = false);
+      _message('Ce trajet n\'est pas encore disponible à l\'achat en ligne.');
+      return;
+    }
+
+    Map<String, dynamic> recu;
+    try {
+      recu = await ApiService.instance.creerBillet(
+        routeId: routeId,
+        date: widget.date,
+        heure: widget.hour,
+        voyageurs: widget.voyageurNames,
+        operateur: _selected!.name,
+        montantAttendu: widget.montantTransport,
+        taxeAttendue: widget.taxe,
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _processing = false);
+      _message(_texteErreurAchat(e));
+      return;
+    }
 
     if (!mounted) return;
     setState(() => _processing = false);
 
-    if (_step == _Step.taxe) {
-      setState(() => _step = _Step.transport);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Taxe de ${Tarif.format(widget.taxe)} payée avec succès.',
-          ),
-        ),
-      );
-      return;
-    }
+    ///
 
-    final datePaiement = DateTime.now();
-    final reference =
-        '${widget.compagnie.id.toUpperCase()}-${datePaiement.millisecondsSinceEpoch % 1000000}';
+    // Le billet vient du serveur : référence, statut et codes passagers officiels.
+    final billetCree = Billet.fromApi(recu);
+    final reference = billetCree.reference;
+    await TicketStore.instance.add(billetCree);
+    NotificationStore.instance
+        .rafraichir(); // la notification d'achat vient du serveur
 
-    TicketStore.instance.add(
-      Billet(
-        reference: reference,
-        compagnie: widget.compagnie,
-        depart: widget.depart,
-        arrivee: widget.arrivee,
-        dateVoyage: widget.date,
-        heure: widget.hour,
-        travelersCount: widget.travelersCount,
-        montantTransport: widget.montantTransport,
-        taxe: widget.taxe,
-        operateur: _selected!,
-        datePaiement: datePaiement,
-        voyageurs: widget.voyageurNames,
-        gare: widget.gare,
-      ),
-    );
-
-    // initialialisations des appels telephoniques et voix feminines
-    final billetCree = Billet(
-      reference: reference,
-      compagnie: widget.compagnie,
-      depart: widget.depart,
-      arrivee: widget.arrivee,
-      dateVoyage: widget.date,
-      heure: widget.hour,
-      travelersCount: widget.travelersCount,
-      montantTransport: widget.montantTransport,
-      taxe: widget.taxe,
-      operateur: _selected!,
-      datePaiement: datePaiement,
-      voyageurs: widget.voyageurNames,
-      gare: widget.gare,
-    );
-    TicketStore.instance.add(billetCree);
+    ///
+    ///
+    ///
     AlertService.instance.planifierPour(billetCree);
 
-    // les notifs dans la page notifs
-    NotificationStore.instance.add(
-      NotificationItem(
-        id: 'achat-$reference',
-        type: NotifType.achat,
-        title: 'Billet confirmé',
-        body:
-            '${widget.compagnie.name} — ${widget.depart} → ${widget.arrivee}, le ${widget.date.day}/${widget.date.month} à ${widget.hour}.',
-        date: DateTime.now(),
-        billetReference: reference,
-      ),
-    );
-    NotificationStore.instance.add(
-      NotificationItem(
-        id: 'rappel-$reference',
-        type: NotifType.rappel,
-        title: 'Rappel de départ',
-        body:
-            'N\'oubliez pas votre trajet ${widget.compagnie.name} du ${widget.date.day}/${widget.date.month} à ${widget.hour} — soyez à la gare 30 min avant.',
-        date: DateTime.now(),
-        billetReference: reference,
-      ),
-    );
+    // NotificationStore.instance.add(
+    //   NotificationItem(
+    //     id: 'achat-$reference',
+    //     type: NotifType.achat,
+    //     title: 'Billet confirmé',
+    //     body:
+    //         '${widget.compagnie.name} — ${widget.depart} → ${widget.arrivee}, le ${widget.date.day}/${widget.date.month} à ${widget.hour}.',
+    //     date: DateTime.now(),
+    //     billetReference: reference,
+    //   ),
+    // );
+    // NotificationStore.instance.add(
+    //   NotificationItem(
+    //     id: 'rappel-$reference',
+    //     type: NotifType.rappel,
+    //     title: 'Rappel de départ',
+    //     body:
+    //         'N\'oubliez pas votre trajet ${widget.compagnie.name} du ${widget.date.day}/${widget.date.month} à ${widget.hour} — soyez à la gare 30 min avant.',
+    //     date: DateTime.now(),
+    //     billetReference: reference,
+    //   ),
+    // );
 
-    if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      // MaterialPageRoute(
-      //   builder: (_) => ConfirmationPaiement(
-      //     compagnie: widget.compagnie,
-      //     depart: widget.depart,
-      //     arrivee: widget.arrivee,
-      //     date: widget.date,
-      //     hour: widget.hour,
-      //     travelersCount: widget.travelersCount,
-      //     montantTransport: widget.montantTransport,
-      //     operateur: _selected!,
-      //     datePaiement: datePaiement,
-      //     reference: reference,
-      //     voyageurs: widget.voyageurNames,
-      //     gare: widget.gare,
-      //   ),
-      // ),
       MaterialPageRoute(
         builder: (_) => ConfirmationPaiement(billet: billetCree),
       ),
     );
+  }
+
+  void _message(String texte) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texte)));
+  }
+
+  String _texteErreurAchat(ApiException e) {
+    if (e.statusCode == 409) {
+      final restantes = e.corps?['places_restantes'];
+      return restantes is int && restantes > 0
+          ? 'Il ne reste que $restantes place(s) pour ce départ.'
+          : 'Ce départ est complet.';
+    }
+    if (e.corps?['montant_attendu'] != null ||
+        e.corps?['taxe_attendue'] != null) {
+      return 'Les tarifs ont changé. Revenez en arrière et recommencez la réservation.';
+    }
+    return e.message;
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kmaa_e_tickets/mon-app/billet/billet.dart';
+import 'package:kmaa_e_tickets/mon-app/billet/reporter_billet.dart';
 import 'package:kmaa_e_tickets/mon-app/localisation_gares/localisation_gares.dart';
 import 'package:kmaa_e_tickets/mon-app/notation_gares/formulaire_notation.dart';
 import 'package:kmaa_e_tickets/mon-app/notation_gares/notation_gares.dart';
@@ -27,7 +28,8 @@ class BilletDetail extends StatelessWidget {
       montantLabel: Tarif.format(billet.montantTransport),
       reference: billet.reference,
       validiteLabel:
-          'Valable jusqu\'au ${formatDateFr(billet.dateValidite)} (15 jours après achat)',
+          // 'Valable jusqu\'au ${formatDateFr(billet.dateValidite)} (15 jours après achat)',
+          'Valable jusqu\'au ${formatDateFr(billet.dateValidite)}',
       qrData: billet.qrData,
       // voyageurLines: billet.voyageurs,
       voyageurLines: [
@@ -79,8 +81,13 @@ class BilletDetail extends StatelessWidget {
                 _buildTicket(),
                 const SizedBox(height: 20),
                 //logique de notation lorsque le voyage se termine
-                if (!billet.estAVenir && billet.gare != null) ...[
+                // if (!billet.estAVenir && billet.gare != null) ...[
+                if (billet.peutEtreNote && billet.gare != null) ...[
                   _buildRateButton(context),
+                  const SizedBox(height: 12),
+                ],
+                if (billet.peutEtreReporte) ...[
+                  _buildReportButton(context),
                   const SizedBox(height: 12),
                 ],
                 // logique du button telecharger le recu
@@ -399,7 +406,9 @@ class BilletDetail extends StatelessWidget {
 
   // widget de notation de la compagnie
   Widget _buildRateButton(BuildContext context) {
-    final deja = AvisGareStore.instance.dejaNote(billet.reference);
+    // final deja = AvisGareStore.instance.dejaNote(billet.reference);
+    final deja =
+        billet.aAvis || AvisGareStore.instance.dejaNote(billet.reference);
     return SizedBox(
       width: double.infinity,
       height: 50,
@@ -426,6 +435,40 @@ class BilletDetail extends StatelessWidget {
           deja ? 'Avis déjà envoyé' : 'Noter cette gare',
           style: TextStyle(
             color: deja ? AppColors.textMuted : AppColors.secondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReportButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: OutlinedButton.icon(
+        onPressed: () async {
+          final reporte = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (_) => ReporterBilletScreen(billet: billet),
+            ),
+          );
+          // Le billet a changé de date : on revient à « Mes billets », qui est à jour.
+          if (reporte == true && context.mounted) Navigator.of(context).pop();
+        },
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: AppColors.secondary),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        icon: const Icon(
+          Icons.event_repeat_rounded,
+          color: AppColors.secondary,
+          size: 18,
+        ),
+        label: const Text(
+          'Reporter mon voyage',
+          style: TextStyle(
+            color: AppColors.secondary,
             fontWeight: FontWeight.w700,
           ),
         ),

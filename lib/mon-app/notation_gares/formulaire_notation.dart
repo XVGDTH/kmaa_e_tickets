@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
 import 'package:kmaa_e_tickets/mon-app/billet/billet.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/notation_gares/notation_gares.dart';
@@ -14,6 +15,7 @@ class NotationGareScreen extends StatefulWidget {
 class _NotationGareScreenState extends State<NotationGareScreen> {
   final Map<String, int> _reponses = {};
   final _commentaireController = TextEditingController();
+  bool _envoi = false;
 
   @override
   void dispose() {
@@ -23,18 +25,59 @@ class _NotationGareScreenState extends State<NotationGareScreen> {
 
   bool get _complet => _reponses.length == kCriteresGare.length;
 
-  void _submit() {
-    AvisGareStore.instance.add(
+  // void _submit() {
+  //   AvisGareStore.instance.add(
+  //     AvisGare(
+  //       id: 'avis-${widget.billet.reference}',
+  //       compagnieId: widget.billet.compagnie.id,
+  //       gareQuartier: widget.billet.gare?.quartier ?? '',
+  //       billetReference: widget.billet.reference,
+  //       date: DateTime.now(),
+  //       scores: Map.from(_reponses),
+  //       commentaire: _commentaireController.text.trim(),
+  //     ),
+  //   );
+  //   Navigator.of(context).pop();
+  //   ScaffoldMessenger.of(
+  //     context,
+  //   ).showSnackBar(const SnackBar(content: Text('Merci pour votre avis !')));
+  // }
+  Future<void> _submit() async {
+    setState(() => _envoi = true);
+    final scores = Map<String, int>.from(_reponses);
+    final commentaire = _commentaireController.text.trim();
+
+    try {
+      await ApiService.instance.envoyerAvis(
+        billetReference: widget.billet.reference,
+        scores: scores,
+        commentaire: commentaire,
+      );
+    } on ApiException catch (e) {
+      // 409 : l'avis de ce billet existe déjà sur le serveur, on le considère envoyé.
+      if (e.statusCode != 409) {
+        if (!mounted) return;
+        setState(() => _envoi = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+        return;
+      }
+    }
+
+    await AvisGareStore.instance.add(
       AvisGare(
         id: 'avis-${widget.billet.reference}',
         compagnieId: widget.billet.compagnie.id,
         gareQuartier: widget.billet.gare?.quartier ?? '',
         billetReference: widget.billet.reference,
         date: DateTime.now(),
-        scores: Map.from(_reponses),
-        commentaire: _commentaireController.text.trim(),
+        scores: scores,
+        commentaire: commentaire,
       ),
     );
+
+    if (!mounted) return;
     Navigator.of(context).pop();
     ScaffoldMessenger.of(
       context,
@@ -104,7 +147,8 @@ class _NotationGareScreenState extends State<NotationGareScreen> {
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(8),
-                  onTap: _complet ? _submit : null,
+                  // onTap: _complet ? _submit : null,
+                  onTap: (_complet && !_envoi) ? _submit : null,
                   child: Center(
                     child: Text(
                       'Envoyer mon avis',

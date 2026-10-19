@@ -3,6 +3,7 @@ import 'package:kmaa_e_tickets/mon-app/constantes/assets-constantes.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/app-string-constantes.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/routes-menu.dart';
+import 'package:kmaa_e_tickets/mon-app/profil-user/profil_user.dart';
 import 'package:video_player/video_player.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -54,10 +55,15 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   // void _onGetStarted() {
-  //   Navigator.of(context).pushReplacementNamed('/login');
+  //   Navigator.of(context).pushReplacementNamed(AppRoutes.signup);
   // }
   void _onGetStarted() {
-    Navigator.of(context).pushReplacementNamed(AppRoutes.signup);
+    // Déjà inscrit sur cet appareil : on reprend par la connexion.
+    final dejaInscrit =
+        (UserStore.instance.profile.value?.telephone ?? '').isNotEmpty;
+    Navigator.of(
+      context,
+    ).pushReplacementNamed(dejaInscrit ? '/login' : AppRoutes.signup);
   }
 
   @override

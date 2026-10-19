@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
+import 'package:kmaa_e_tickets/mon-app/billet/billet.dart';
+import 'package:kmaa_e_tickets/mon-app/notification/notification_item.dart';
 
 class UserProfile {
   const UserProfile({
@@ -97,8 +100,41 @@ class UserStore {
     profile.value = p;
   }
 
+  // Future<void> deconnecter() async {
+  //   final current = profile.value;
+  //   if (current != null) await save(current.copyWith(estAuthentifie: false));
+  // }
+  /// Déconnexion volontaire : le serveur révoque le jeton de cet appareil.
+  /// Au prochain lancement, l'application demandera de se reconnecter.
   Future<void> deconnecter() async {
+    await ApiService.instance.deconnecter();
     final current = profile.value;
     if (current != null) await save(current.copyWith(estAuthentifie: false));
+  }
+
+  /// À appeler juste après une connexion réussie (login ou code OTP valide).
+  /// Les noms viennent du serveur : le compte est retrouvé même sur un nouvel appareil.
+  Future<UserProfile> ouvrirSession({required String telephone}) async {
+    final serveur = ApiService.instance.utilisateur;
+    final actuel = profile.value;
+
+    UserProfile base;
+    if (actuel != null && actuel.telephone == telephone) {
+      base = actuel;
+    } else {
+      // Autre compte sur cet appareil : on repart de zéro, billets compris.
+      await TicketStore.instance.vider();
+      await NotificationStore.instance.vider();
+      base = const UserProfile(prenom: '', nom: '');
+    }
+
+    final p = base.copyWith(
+      prenom: '${serveur?['prenom'] ?? base.prenom}',
+      nom: '${serveur?['nom'] ?? base.nom}',
+      telephone: telephone,
+      estAuthentifie: true,
+    );
+    await save(p);
+    return p;
   }
 }

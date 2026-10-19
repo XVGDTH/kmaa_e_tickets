@@ -8,8 +8,7 @@ import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_tcv.dart';
 import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_tsr.dart';
 
 /// Une gare précise proposant un trajet, avec ses propres horaires et
-/// son propre tarif — le nom de la gare est ce qui s'affiche en premier
-/// sur chaque carte de trajet.
+
 class DepartGare {
   const DepartGare({
     required this.quartier,
@@ -20,6 +19,9 @@ class DepartGare {
     this.adresse = '',
     this.latitude = 0,
     this.longitude = 0,
+    this.routeId,
+    this.gareId,
+    this.disponibilites = const {},
   });
 
   final String quartier;
@@ -30,13 +32,74 @@ class DepartGare {
   final String adresse;
   final double latitude;
   final double longitude;
+
+  /// Identifiants côté serveur (null pour les données locales).
+  final int? routeId;
+  final int? gareId;
+
+  /// Places restantes par horaire (« 08h30 » → 12), pour la date demandée.
+  final Map<String, int> disponibilites;
+
+  factory DepartGare.fromJson(Map<String, dynamic> j) {
+    final dispo = <String, int>{};
+    final brut = j['disponibilites'];
+    if (brut is Map) {
+      brut.forEach((k, v) => dispo['$k'] = (v as num?)?.toInt() ?? 0);
+    }
+    final duree = j['dureeMax'];
+
+    return DepartGare(
+      quartier: '${j['quartier'] ?? ''}',
+      horaires: (j['horaires'] as List? ?? const []).map((e) => '$e').toList(),
+      prixTicket: (j['prixTicket'] as num?)?.toInt() ?? 0,
+      dureeMax: duree is String && duree.isNotEmpty ? duree : '—',
+      telephone: '${j['telephone'] ?? ''}',
+      adresse: '${j['adresse'] ?? ''}',
+      latitude: double.tryParse('${j['latitude'] ?? ''}') ?? 0,
+      longitude: double.tryParse('${j['longitude'] ?? ''}') ?? 0,
+      routeId: (j['route_id'] as num?)?.toInt(),
+      gareId: (j['gare_id'] as num?)?.toInt(),
+      disponibilites: dispo,
+    );
+  }
 }
 
 /// Une destination, avec une ou plusieurs gares qui la desservent.
+// class RouteOption {
+//   const RouteOption({required this.destination, required this.gares});
+//   final String destination;
+//   final List<DepartGare> gares;
+
+//   factory RouteOption.fromJson(Map<String, dynamic> j) => RouteOption(
+//     destination: '${j['destination'] ?? ''}',
+//     gares: (j['gares'] as List? ?? const [])
+//         .whereType<Map>()
+//         .map((g) => DepartGare.fromJson(Map<String, dynamic>.from(g)))
+//         .toList(),
+//   );
+// }
+/// Une destination, avec une ou plusieurs gares qui la desservent.
 class RouteOption {
-  const RouteOption({required this.destination, required this.gares});
+  const RouteOption({
+    required this.destination,
+    required this.gares,
+    this.pays = '',
+    this.etranger = false,
+  });
   final String destination;
   final List<DepartGare> gares;
+  final String pays;
+  final bool etranger;
+
+  factory RouteOption.fromJson(Map<String, dynamic> j) => RouteOption(
+    destination: '${j['destination'] ?? ''}',
+    pays: '${j['pays'] ?? ''}',
+    etranger: j['etranger'] == true,
+    gares: (j['gares'] as List? ?? const [])
+        .whereType<Map>()
+        .map((g) => DepartGare.fromJson(Map<String, dynamic>.from(g)))
+        .toList(),
+  );
 }
 
 class CompagnieReseau {

@@ -20,6 +20,12 @@ class MesBillets extends StatefulWidget {
 class _MesBilletsState extends State<MesBillets> {
   int _tab = 0; // 0 = à venir, 1 = historique
 
+  @override
+  void initState() {
+    super.initState();
+    TicketStore.instance.rafraichir(); // statuts à jour à chaque ouverture
+  }
+
   void _onMenuSelect(MenuItem item) =>
       AppRoutes.navigateFromMenu(context, item);
 
@@ -34,7 +40,8 @@ class _MesBilletsState extends State<MesBillets> {
       montantLabel: Tarif.format(b.montantTransport),
       reference: b.reference,
       validiteLabel:
-          'Valable jusqu\'au ${formatDateFr(b.dateValidite)} (15 jours après achat)',
+          // 'Valable jusqu\'au ${formatDateFr(b.dateValidite)} (15 jours après achat)',
+          'Valable jusqu\'au ${formatDateFr(b.dateValidite)}',
       qrData: b.qrData,
       // voyageurLines: b.voyageurs,
       voyageurLines: [
@@ -352,7 +359,8 @@ class _MesBilletsState extends State<MesBillets> {
                           ),
                         ),
                       ),
-                      _buildStatusChip(upcoming),
+                      // _buildStatusChip(upcoming),
+                      _buildStatusChip(b),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -438,21 +446,46 @@ class _MesBilletsState extends State<MesBillets> {
     );
   }
 
-  Widget _buildStatusChip(bool upcoming) {
+  // Widget _buildStatusChip(bool upcoming) {
+  //   return Container(
+  //     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+  //     decoration: BoxDecoration(
+  //       color: upcoming
+  //           ? AppColors.primary.withOpacity(0.12)
+  //           : AppColors.textMuted.withOpacity(0.12),
+  //       borderRadius: BorderRadius.circular(8),
+  //     ),
+  //     child: Text(
+  //       upcoming ? 'À venir' : 'Terminé',
+  //       style: TextStyle(
+  //         fontSize: 10.5,
+  //         fontWeight: FontWeight.w800,
+  //         color: upcoming ? AppColors.primary : AppColors.textMuted,
+  //       ),
+  //     ),
+  //   );
+  // }
+  Widget _buildStatusChip(Billet b) {
+    final couleur = switch (b.statut) {
+      'utilise' => const Color(0xFF16A34A),
+      'annule' => AppColors.error,
+      'rembourse' => const Color(0xFF7C3AED),
+      'en_attente_paiement' => const Color(0xFFF59E0B),
+      _ => b.estAVenir ? AppColors.primary : AppColors.textMuted,
+    };
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: upcoming
-            ? AppColors.primary.withOpacity(0.12)
-            : AppColors.textMuted.withOpacity(0.12),
+        color: couleur.withOpacity(0.12),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        upcoming ? 'À venir' : 'Terminé',
+        b.statutLabel,
         style: TextStyle(
           fontSize: 10.5,
           fontWeight: FontWeight.w800,
-          color: upcoming ? AppColors.primary : AppColors.textMuted,
+          color: couleur,
         ),
       ),
     );

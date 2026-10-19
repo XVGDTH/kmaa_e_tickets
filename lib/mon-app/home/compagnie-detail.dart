@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
 import 'package:kmaa_e_tickets/mon-app/compteur-ticket/compteur_ticket.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/home/compagnie.dart';
@@ -33,13 +34,22 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
   TripType _tripType = TripType.national;
 
   String? _departVille;
-  final _paysController = TextEditingController();
-  final _arriveeIntlController = TextEditingController();
+  // final _paysController = TextEditingController();
+  // final _arriveeIntlController = TextEditingController();
 
   String? _destination;
   String? _selectedHoraire;
-  // Gare? _gare;
   DepartGare? _gare;
+  String? _pays; // pays de la destination choisie (trajets internationaux)
+
+  // Données venant du serveur
+  List<String> _villesDepart = const [];
+  bool _villesChargees = false;
+  String? _erreurVilles;
+  List<RouteOption> _routes = const [];
+  bool _chargementRoutes = false;
+  String? _erreurRoutes;
+  int _requete = 0; // ignore la réponse d'une recherche déjà remplacée
 
   TicketSelection _ticketSelection = const TicketSelection(
     count: 1,
@@ -60,22 +70,134 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
     super.initState();
     final now = DateTime.now();
     _days = List.generate(7, (i) => DateTime(now.year, now.month, now.day + i));
+    _chargerVilles();
   }
 
   @override
   void dispose() {
-    // _departController.dispose();
-    _paysController.dispose();
-    _arriveeIntlController.dispose();
+    // _paysController.dispose();
+    // _arriveeIntlController.dispose();
     super.dispose();
   }
 
-  bool get _showTicketSelector {
-    if (_tripType == TripType.national) return _gare != null;
-    return _paysController.text.trim().isNotEmpty &&
-        _arriveeIntlController.text.trim().isNotEmpty &&
-        _selectedHoraire != null;
+  void _onTypeChange(TripType v) {
+    if (v == _tripType) return;
+    setState(() {
+      _tripType = v;
+      _departVille = null;
+      _destination = null;
+      _pays = null;
+      _selectedHoraire = null;
+      _gare = null;
+      _routes = const [];
+      _villesDepart = const [];
+      _erreurRoutes = null;
+      _requete++;
+    });
+    _chargerVilles();
   }
+
+  // ───────────── Données du serveur ─────────────
+
+  Future<void> _chargerVilles() async {
+    final type = _tripType;
+    setState(() {
+      _erreurVilles = null;
+      _villesChargees = false;
+    });
+    try {
+      final villes = await ApiService.instance.fetchVillesDepart(
+        widget.compagnie.id,
+        type: type.name,
+      );
+      if (!mounted || type != _tripType) return;
+      setState(() {
+        _villesDepart = villes;
+        _villesChargees = true;
+      });
+    } on ApiException catch (e) {
+      if (!mounted || type != _tripType) return;
+      setState(() {
+        _villesChargees = true;
+        _erreurVilles = e.message;
+      });
+    }
+  }
+
+  Future<void> _chargerRoutes() async {
+    final ville = _departVille;
+    if (ville == null) return;
+
+    final numero = ++_requete;
+    setState(() {
+      _chargementRoutes = true;
+      _erreurRoutes = null;
+    });
+
+    try {
+      final data = await ApiService.instance.fetchRoutes(
+        compagnieSlug: widget.compagnie.id,
+        depart: ville,
+        date: _days[_selectedDay],
+        type: _tripType.name,
+      );
+      if (!mounted || numero != _requete) return;
+
+      // On ne garde que les gares qui ont au moins un départ ce jour-là.
+      final routes = data
+          .map(RouteOption.fromJson)
+          .map(
+            (r) => RouteOption(
+              destination: r.destination,
+              pays: r.pays,
+              etranger: r.etranger,
+              gares: r.gares.where((g) => g.horaires.isNotEmpty).toList(),
+            ),
+          )
+          .where((r) => r.gares.isNotEmpty)
+          .toList();
+
+      setState(() {
+        _routes = routes;
+        _chargementRoutes = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted || numero != _requete) return;
+      setState(() {
+        _routes = const [];
+        _chargementRoutes = false;
+        _erreurRoutes = e.message;
+      });
+    }
+  }
+
+  /// Cache les départs déjà passés (aujourd'hui) et ceux qui n'ont plus de place.
+  List<String> _horairesAffichables(DepartGare g) {
+    final maintenant = DateTime.now();
+    final jour = _days[_selectedDay];
+
+    return g.horaires.where((h) {
+      if ((g.disponibilites[h] ?? 1) <= 0) return false;
+      final m = RegExp(r'^(\d{1,2})\D+(\d{2})').firstMatch(h);
+      if (m == null) return true;
+      final depart = DateTime(
+        jour.year,
+        jour.month,
+        jour.day,
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+      );
+      return depart.isAfter(maintenant);
+    }).toList();
+  }
+
+  // bool get _showTicketSelector {
+  //   if (_tripType == TripType.national) return _gare != null;
+  //   return _paysController.text.trim().isNotEmpty &&
+  //       _arriveeIntlController.text.trim().isNotEmpty &&
+  //       _selectedHoraire != null;
+  // }
+  bool get _showTicketSelector => _gare != null;
 
   int get _currentStep {
     if (!_showTicketSelector) {
@@ -84,22 +206,38 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
     return 2;
   }
 
-  // void _onDepartChanged(String value) {
-  //   setState(() {
-  //     _destination = null;
-  //     _selectedHoraire = null;
-  //     _gare = null;
-  //   });
-  // }
   void _onDepartChanged(String ville) {
     setState(() {
       _departVille = ville;
       _destination = null;
       _selectedHoraire = null;
       _gare = null;
+      _routes = const [];
     });
+    _chargerRoutes();
   }
 
+  // void _onContinue() {
+  //   Navigator.of(context).push(
+  //     MaterialPageRoute(
+  //       builder: (_) => RecapPaiement(
+  //         compagnie: widget.compagnie,
+  //         tripType: _tripType,
+  //         date: _days[_selectedDay],
+  //         hour: _selectedHoraire!,
+  //         depart: _departVille ?? ''.trim(),
+  //         destination: _tripType == TripType.national
+  //             ? _destination!
+  //             : _arriveeIntlController.text.trim(),
+  //         gare: _gare,
+  //         pays: _tripType == TripType.international
+  //             ? _paysController.text.trim()
+  //             : null,
+  //         ticketSelection: _ticketSelection,
+  //       ),
+  //     ),
+  //   );
+  // }
   void _onContinue() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -108,14 +246,10 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
           tripType: _tripType,
           date: _days[_selectedDay],
           hour: _selectedHoraire!,
-          depart: _departVille ?? ''.trim(),
-          destination: _tripType == TripType.national
-              ? _destination!
-              : _arriveeIntlController.text.trim(),
+          depart: _departVille ?? '',
+          destination: _destination!,
           gare: _gare,
-          pays: _tripType == TripType.international
-              ? _paysController.text.trim()
-              : null,
+          pays: _tripType == TripType.international ? _pays : null,
           ticketSelection: _ticketSelection,
         ),
       ),
@@ -146,12 +280,13 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
                       const SizedBox(height: 12),
                       TripTypeSelector(
                         value: _tripType,
-                        onChanged: (v) => setState(() {
-                          _tripType = v;
-                          _destination = null;
-                          _selectedHoraire = null;
-                          _gare = null;
-                        }),
+                        // onChanged: (v) => setState(() {
+                        //   _tripType = v;
+                        //   _destination = null;
+                        //   _selectedHoraire = null;
+                        //   _gare = null;
+                        // }),
+                        onChanged: _onTypeChange,
                       ),
                       const SizedBox(height: 24),
                       const Text('Choisissez votre date', style: _sectionTitle),
@@ -166,56 +301,72 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
                       ),
                       const SizedBox(height: 12),
                       VilleSelector(
-                        villes: villesDepartDisponibles(widget.compagnie.id),
+                        villes: _villesDepart,
                         selected: _departVille,
                         onSelected: _onDepartChanged,
                       ),
-                      if (_tripType == TripType.national) ...[
-                        // if (_departController.text.trim().isNotEmpty) ...[
-                        if (_departVille != null) ...[
-                          const SizedBox(height: 20),
-                          const Text(
-                            'Choisissez votre destination et l\'heure',
-                            style: _sectionTitle,
+                      if (_erreurVilles != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _erreurVilles!,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.error,
                           ),
-                          const SizedBox(height: 12),
-                          _buildRouteCards(),
-                        ],
-                        // if (_destination != null) ...[
-                        //   const SizedBox(height: 20),
-                        //   const Text(
-                        //     'Choisissez votre gare de départ',
-                        //     style: _sectionTitle,
-                        //   ),
-                        //   const SizedBox(height: 12),
-                        //   _buildGareList(),
-                        // ],
-                      ] else ...[
-                        const SizedBox(height: 12),
-                        // VilleSelector(
-                        //   villes: villesDepartDisponibles(widget.compagnie.id),
-                        //   selected: _departVille,
-                        //   onSelected: _onDepartChanged,
-                        // ),
-                        // const SizedBox(height: 12),
-                        _buildField(
-                          _arriveeIntlController,
-                          'Ville de destination',
-                          Icons.location_on_outlined,
-                          onChanged: (_) => setState(() {}),
                         ),
-                        if (_paysController.text.trim().isNotEmpty &&
-                            _arriveeIntlController.text.trim().isNotEmpty) ...[
-                          const SizedBox(height: 20),
-                          const Text('Heure de départ', style: _sectionTitle),
-                          const SizedBox(height: 12),
-                          HoraireChips(
-                            horaires: horairesInternationalDefaut,
-                            selected: _selectedHoraire,
-                            onSelect: (h) =>
-                                setState(() => _selectedHoraire = h),
+                        TextButton(
+                          onPressed: _chargerVilles,
+                          child: const Text('Réessayer'),
+                        ),
+                      ] else if (_villesChargees && _villesDepart.isEmpty) ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Aucun départ disponible pour cette compagnie pour le moment.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textMuted,
                           ),
-                        ],
+                        ),
+                      ],
+                      // if (_tripType == TripType.national) ...[
+                      //   if (_departVille != null) ...[
+                      //     const SizedBox(height: 20),
+                      //     const Text(
+                      //       'Choisissez votre destination et l\'heure',
+                      //       style: _sectionTitle,
+                      //     ),
+                      //     const SizedBox(height: 12),
+                      //     _buildRouteCards(),
+                      //   ],
+                      // ] else ...[
+                      //   const SizedBox(height: 12),
+                      //   _buildField(
+                      //     _arriveeIntlController,
+                      //     'Ville de destination',
+                      //     Icons.location_on_outlined,
+                      //     onChanged: (_) => setState(() {}),
+                      //   ),
+                      //   if (_paysController.text.trim().isNotEmpty &&
+                      //       _arriveeIntlController.text.trim().isNotEmpty) ...[
+                      //     const SizedBox(height: 20),
+                      //     const Text('Heure de départ', style: _sectionTitle),
+                      //     const SizedBox(height: 12),
+                      //     HoraireChips(
+                      //       horaires: horairesInternationalDefaut,
+                      //       selected: _selectedHoraire,
+                      //       onSelect: (h) =>
+                      //           setState(() => _selectedHoraire = h),
+                      //     ),
+                      //   ],
+                      // ],
+                      if (_departVille != null) ...[
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Choisissez votre destination et l\'heure',
+                          style: _sectionTitle,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildRouteCards(),
                       ],
 
                       if (_showTicketSelector) ...[
@@ -350,7 +501,15 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
     final date = _days[index];
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => _selectedDay = index),
+      onTap: () {
+        setState(() {
+          _selectedDay = index;
+          _destination = null;
+          _selectedHoraire = null;
+          _gare = null;
+        });
+        _chargerRoutes();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -392,50 +551,29 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
     );
   }
 
-  Widget _buildField(
-    TextEditingController controller,
-    String hint,
-    IconData icon, {
-    required ValueChanged<String> onChanged,
-  }) {
-    return Container(
-      height: 54,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.textMuted, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              style: const TextStyle(color: AppColors.textDark, fontSize: 15),
-              decoration: InputDecoration(
-                hintText: hint,
-                hintStyle: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 15,
-                ),
-                border: InputBorder.none,
-                isDense: true,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildRouteCards() {
-    final routes = routesDepuis(widget.compagnie.id, _departVille ?? '');
+    if (_chargementRoutes) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_erreurRoutes != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _erreurRoutes!,
+            style: const TextStyle(fontSize: 13, color: AppColors.error),
+          ),
+          TextButton(onPressed: _chargerRoutes, child: const Text('Réessayer')),
+        ],
+      );
+    }
+    final routes = _routes;
     if (routes.isEmpty) {
       return const Text(
-        'Aucune destination trouvée pour cette ville.',
+        'Aucun départ ce jour-là pour cette ville.',
         style: TextStyle(fontSize: 13, color: AppColors.textMuted),
       );
     }
@@ -470,7 +608,8 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '$depart → ${route.destination}',
+                        // '$depart → ${route.destination}',
+                        '$depart → ${route.destination}${route.etranger ? " (${route.pays})" : ""}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
@@ -548,12 +687,16 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
           ],
           const SizedBox(height: 8),
           HoraireChips(
-            horaires: g.horaires,
+            horaires: _horairesAffichables(g),
             selected: selected ? _selectedHoraire : null,
             onSelect: (h) => setState(() {
               _destination = destination;
               _selectedHoraire = h;
               _gare = g;
+              _pays = _routes
+                  .where((r) => r.destination == destination)
+                  .firstOrNull
+                  ?.pays;
             }),
           ),
         ],

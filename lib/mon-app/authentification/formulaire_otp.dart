@@ -1,11 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/routes-menu.dart';
 import 'package:kmaa_e_tickets/mon-app/profil-user/profil_user.dart';
-import 'package:kmaa_e_tickets/mon-app/utilisateurs/utilisateur.dart'
-    hide UserStore, UserProfile;
 import 'package:kmaa_e_tickets/mon-app/widgets/loading_button.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -34,6 +34,42 @@ class _OtpScreenState extends State<OtpScreen> {
   final _codeController = TextEditingController();
   bool _loading = false;
   String? _erreur;
+  int _attente = 30; // secondes avant de pouvoir redemander un code
+  Timer? _minuteur;
+
+  @override
+  void initState() {
+    super.initState();
+    _demarrerAttente();
+  }
+
+  void _demarrerAttente() {
+    _minuteur?.cancel();
+    _attente = 30;
+    _minuteur = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() => _attente--);
+      if (_attente <= 0) t.cancel();
+    });
+  }
+
+  Future<void> _renvoyer() async {
+    setState(() => _erreur = null);
+    try {
+      await ApiService.instance.renvoyerOtp(widget.telephone);
+      if (!mounted) return;
+      setState(_demarrerAttente);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Un nouveau code vient d\'être envoyé.')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _erreur = e.message);
+    }
+  }
 
   @override
   void dispose() {
@@ -41,40 +77,107 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
+  // Future<void> _verifier() async {
+  //   setState(() {
+  //     _loading = true;
+  //     _erreur = null;
+  //   });
+  //   final ok = await ApiService.instance.verifierOtp(
+  //     telephone: widget.telephone,
+  //     code: _codeController.text.trim(),
+  //   );
+  //   if (!mounted) return;
+  //   setState(() => _loading = false);
+
+  //   if (!ok) {
+  //     setState(
+  //       () => _erreur = 'Code incorrect. Vérifiez le message WhatsApp reçu.',
+  //     );
+  //     return;
+  //   }
+
+  //   await UserStore.instance.save(
+  //     UserProfile(
+  //       prenom: widget.prenom,
+  //       nom: widget.nom,
+  //       telephone: widget.telephone,
+  //       motDePasseHash: hasherMotDePasse(widget.motDePasse),
+  //       estAuthentifie: true,
+  //     ),
+  //   );
+
+  //   if (!mounted) return;
+  //   Navigator.of(context).pushNamedAndRemoveUntil(
+  //     AppRoutes.home,
+  //     (route) => false,
+  //     arguments: {'nom': widget.nom, 'prenom': widget.prenom},
+  //   );
+  // }
+
   Future<void> _verifier() async {
+    final code = _codeController.text.trim();
+    if (code.length != 6) {
+      setState(() => _erreur = 'Entrez les 6 chiffres du code reçu.');
+      return;
+    }
+
     setState(() {
       _loading = true;
       _erreur = null;
     });
-    final ok = await ApiService.instance.verifierOtp(
-      telephone: widget.telephone,
-      code: _codeController.text.trim(),
-    );
-    if (!mounted) return;
-    setState(() => _loading = false);
 
-    if (!ok) {
-      setState(
-        () => _erreur = 'Code incorrect. Vérifiez le message WhatsApp reçu.',
+    try {
+      final ok = await ApiService.instance.verifierOtp(
+        telephone: widget.telephone,
+        code: code,
       );
+      if (!mounted) return;
+
+      if (!ok) {
+        setState(
+          () => _erreur =
+              ApiService.instance.derniereErreur ??
+              'Code incorrect. Vérifiez le message WhatsApp reçu.',
+        );
+        return;
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _erreur = e.message);
       return;
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
 
-    await UserStore.instance.save(
-      UserProfile(
-        prenom: widget.prenom,
-        nom: widget.nom,
-        telephone: widget.telephone,
-        motDePasseHash: hasherMotDePasse(widget.motDePasse),
-        estAuthentifie: true,
-      ),
+    // Compte vérifié : ApiService a déjà enregistré la session sur le téléphone.
+    //   await UserStore.instance.save(
+    //     UserProfile(
+    //       prenom: widget.prenom,
+    //       nom: widget.nom,
+    //       telephone: widget.telephone,
+    //       motDePasseHash: hasherMotDePasse(widget.motDePasse),
+    //       estAuthentifie: true,
+    //     ),
+    //   );
+
+    //   if (!mounted) return;
+    //   Navigator.of(context).pushNamedAndRemoveUntil(
+    //     AppRoutes.home,
+    //     (route) => false,
+    //     arguments: {'nom': widget.nom, 'prenom': widget.prenom},
+    //   );
+    // }
+
+    // Compte vérifié : la session est enregistrée. Les noms viennent du serveur.
+    final profil = await UserStore.instance.ouvrirSession(
+      telephone: widget.telephone,
     );
 
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil(
       AppRoutes.home,
       (route) => false,
-      arguments: {'nom': widget.nom, 'prenom': widget.prenom},
+      arguments: {'nom': profil.nom, 'prenom': profil.prenom},
     );
   }
 
@@ -170,11 +273,22 @@ class _OtpScreenState extends State<OtpScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
+
                 LoadingButton(
                   label: 'Vérifier',
                   loading: _loading,
                   onPressed: _verifier,
+                ),
+                const SizedBox(height: 12),
+                Center(
+                  child: TextButton(
+                    onPressed: (_attente > 0 || _loading) ? null : _renvoyer,
+                    child: Text(
+                      _attente > 0
+                          ? 'Renvoyer le code dans $_attente s'
+                          : 'Renvoyer le code',
+                    ),
+                  ),
                 ),
               ],
             ),

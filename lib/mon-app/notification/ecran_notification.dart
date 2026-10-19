@@ -7,8 +7,22 @@ import 'package:kmaa_e_tickets/mon-app/constantes/routes-menu.dart';
 import 'package:kmaa_e_tickets/mon-app/notation_gares/formulaire_notation.dart';
 import 'package:kmaa_e_tickets/mon-app/notification/notification_item.dart';
 
-class NotificationsScreen extends StatelessWidget {
+// class NotificationsScreen extends StatelessWidget {
+//   const NotificationsScreen({super.key});
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    NotificationStore.instance
+        .rafraichir(); // à jour à chaque ouverture de l'écran
+  }
 
   void _onMenuSelect(BuildContext context, MenuItem item) =>
       AppRoutes.navigateFromMenu(context, item);

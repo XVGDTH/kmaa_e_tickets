@@ -6,6 +6,7 @@ import 'package:kmaa_e_tickets/mon-app/localisation_gares/localisation_gares.dar
 import 'package:kmaa_e_tickets/mon-app/notation_gares/formulaire_notation.dart';
 import 'package:kmaa_e_tickets/mon-app/notation_gares/notation_gares.dart';
 import 'package:kmaa_e_tickets/mon-app/paiement/recu_paiement.dart';
+import 'package:kmaa_e_tickets/mon-app/service_client/service_client.dart';
 import 'package:kmaa_e_tickets/mon-app/tarifs/tarifs.dart';
 import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -90,6 +91,20 @@ class BilletDetail extends StatelessWidget {
                   _buildReportButton(context),
                   const SizedBox(height: 12),
                 ],
+                TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ServiceClientScreen(
+                        referenceBillet: billet.reference,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.headset_mic_outlined, size: 18),
+                  label: const Text(
+                    'Un problème avec ce billet ? Service client',
+                  ),
+                ),
+                const SizedBox(height: 8),
                 // logique du button telecharger le recu
                 SizedBox(
                   width: double.infinity,

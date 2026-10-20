@@ -6,6 +6,7 @@ import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/menu.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/routes-menu.dart';
 import 'package:kmaa_e_tickets/mon-app/profil-user/profil_user.dart';
+import 'package:kmaa_e_tickets/mon-app/service_client/service_client.dart';
 
 class ProfilScreen extends StatelessWidget {
   const ProfilScreen({super.key});
@@ -45,34 +46,6 @@ class ProfilScreen extends StatelessWidget {
                       'Moyens de paiement utilisés',
                       () => _showMoyensPaiement(context),
                     ),
-                    // _buildSwitchTile(
-                    //   Icons.notifications_active_outlined,
-                    //   'Rappels de départ',
-                    //   p.recevoirRappels,
-                    //   (v) => UserStore.instance.save(
-                    //     p.copyWith(recevoirRappels: v),
-                    //   ),
-                    // ),
-                    // if (kDebugMode)
-                    // _buildTile(
-                    //   Icons.qr_code_scanner,
-                    //   'Vérifier un ticket (agent)',
-                    //   () => Navigator.of(context).push(
-                    //     MaterialPageRoute(
-                    //       builder: (_) => const VerifierBilletScreen(),
-                    //     ),
-                    //   ),
-                    // ),
-                    //agent verification pour le moment
-                    // _buildTile(
-                    //   Icons.qr_code_scanner,
-                    //   'Vérifier un ticket (agent)',
-                    //   () => Navigator.of(context).push(
-                    //     MaterialPageRoute(
-                    //       builder: (_) => const VerifierBilletScreen(),
-                    //     ),
-                    //   ),
-                    // ),
                   ]),
                   const SizedBox(height: 20),
                   _buildSection('Application', [
@@ -82,10 +55,19 @@ class ProfilScreen extends StatelessWidget {
                       () {},
                       trailing: 'Français',
                     ),
+                    // _buildTile(
+                    //   Icons.help_outline,
+                    //   'Aide & Support',
+                    //   () => _showAide(context),
+                    // ),
                     _buildTile(
-                      Icons.help_outline,
-                      'Aide & Support',
-                      () => _showAide(context),
+                      Icons.headset_mic_outlined,
+                      'Service client',
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ServiceClientScreen(),
+                        ),
+                      ),
                     ),
                     _buildTile(
                       Icons.info_outline,

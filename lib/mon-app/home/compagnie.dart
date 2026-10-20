@@ -28,7 +28,8 @@ class Compagnie {
 /// Les notes et étiquettes sont des valeurs d'exemple à remplacer.
 const List<Compagnie> kCompagnies = [
   Compagnie(
-    id: 'staf',
+    // id: 'staf',
+    id: 'staf_gare',
     name: 'STAF',
     image: 'assets/images/compagnies/staf.png',
     rating: 4.5,

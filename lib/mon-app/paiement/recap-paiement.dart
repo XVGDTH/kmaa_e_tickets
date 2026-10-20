@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:kmaa_e_tickets/mon-app/compteur-ticket/compteur_ticket.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/home/compagnie.dart';
+import 'package:kmaa_e_tickets/mon-app/paiement/consentement_paiement.dart';
 import 'package:kmaa_e_tickets/mon-app/tarifs/tarifs.dart';
 import 'package:kmaa_e_tickets/mon-app/trajet-national-externe/trajet_national.dart';
 import 'package:kmaa_e_tickets/mon-app/transport/reseau_transport.dart';
@@ -89,7 +90,11 @@ class RecapPaiement extends StatelessWidget {
                       const SizedBox(height: 12),
                       _buildInvoice(),
                       const SizedBox(height: 24),
-                      _buildPayButton(context),
+                      // _buildPayButton(context),
+                      BlocConsentementPaiement(
+                        libelleBouton: 'Payer ${Tarif.format(_total)}',
+                        onPay: () => _onPay(context),
+                      ),
                     ],
                   ),
                 ),
@@ -353,37 +358,6 @@ class RecapPaiement extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPayButton(BuildContext context) {
-    final radius = BorderRadius.circular(8);
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: radius,
-          gradient: AppColors.buttonGradient,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: radius,
-            onTap: () => _onPay(context),
-            child: Center(
-              child: Text(
-                'Payer ${Tarif.format(_total)}',
-                style: const TextStyle(
-                  color: AppColors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

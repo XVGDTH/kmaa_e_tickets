@@ -299,6 +299,9 @@ class ApiService {
     required String operateur,
     int? montantAttendu,
     int? taxeAttendue,
+    bool consentement = false,
+
+    // 'consentement': consentement,
   }) async {
     final data = await _appel(
       'POST',
@@ -312,6 +315,7 @@ class ApiService {
         'voyageurs': voyageurs,
         'montant_transport': ?montantAttendu,
         'taxe': ?taxeAttendue,
+        'consentement': consentement,
       },
     );
     final billet = data is Map ? data['billet'] : null;

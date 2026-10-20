@@ -7,6 +7,7 @@ import 'package:kmaa_e_tickets/mon-app/home/compagnie.dart';
 import 'package:kmaa_e_tickets/mon-app/logo-operateurs-telephoniques/logo-operateur-telephonique.dart';
 import 'package:kmaa_e_tickets/mon-app/notification/notification_item.dart';
 import 'package:kmaa_e_tickets/mon-app/paiement/confirmation_paiement.dart';
+import 'package:kmaa_e_tickets/mon-app/paiement/consentement_paiement.dart';
 import 'package:kmaa_e_tickets/mon-app/paiement/operateur_paiement.dart';
 import 'package:kmaa_e_tickets/mon-app/service-rappel_telephonique/service-rappel.dart';
 import 'package:kmaa_e_tickets/mon-app/tarifs/tarifs.dart';
@@ -110,6 +111,8 @@ class _ChoixOperateurState extends State<ChoixOperateur> {
         operateur: _selected!.name,
         montantAttendu: widget.montantTransport,
         taxeAttendue: widget.taxe,
+        consentement:
+            true, // coché sur l'écran de récapitulatif, avant tout paiement
       );
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -219,7 +222,13 @@ class _ChoixOperateurState extends State<ChoixOperateur> {
                               ? _buildPhoneForm()
                               : _buildCardForm(),
                         ],
-                        const SizedBox(height: 28),
+                        // const SizedBox(height: 28),
+                        // _buildPayButton(),
+                        const SizedBox(height: 20),
+                        if (_step == _Step.taxe) ...[
+                          const AvertissementFrais(),
+                          const SizedBox(height: 14),
+                        ],
                         _buildPayButton(),
                         const SizedBox(height: 12),
                         const Center(

@@ -65,19 +65,6 @@ class DepartGare {
 }
 
 /// Une destination, avec une ou plusieurs gares qui la desservent.
-// class RouteOption {
-//   const RouteOption({required this.destination, required this.gares});
-//   final String destination;
-//   final List<DepartGare> gares;
-
-//   factory RouteOption.fromJson(Map<String, dynamic> j) => RouteOption(
-//     destination: '${j['destination'] ?? ''}',
-//     gares: (j['gares'] as List? ?? const [])
-//         .whereType<Map>()
-//         .map((g) => DepartGare.fromJson(Map<String, dynamic>.from(g)))
-//         .toList(),
-//   );
-// }
 /// Une destination, avec une ou plusieurs gares qui la desservent.
 class RouteOption {
   const RouteOption({
@@ -125,7 +112,8 @@ String _normalize(String s) {
 /// Registre : une compagnie sans données réelles n'a simplement pas
 /// d'entrée ici.
 final Map<String, CompagnieReseau> _reseaux = {
-  'staf': staf,
+  // 'staf': staf,
+  'staf_gare': staf,
   'tsr': tsr,
   'elitis': elitis,
   'rahimo': rahimo,

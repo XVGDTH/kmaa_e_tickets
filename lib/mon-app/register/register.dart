@@ -7,6 +7,7 @@ import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/app-string-constantes.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/gradient-button.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/validators.dart';
+import 'package:kmaa_e_tickets/mon-app/marketing/offres_whatsapp.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -38,43 +39,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _telephoneController.dispose();
     super.dispose();
   }
-
-  // Future<void> _onSignUp() async {
-  //   if (!_formKey.currentState!.validate()) return;
-  //   if (!_acceptedTerms) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(
-  //         content: Text('Veuillez accepter les termes et conditions.'),
-  //       ),
-  //     );
-  //     return;
-  //   }
-
-  //   final nom = _lastNameController.text.trim();
-  //   final prenom = _firstNameController.text.trim();
-  //   final telephone = _telephoneController.text.trim();
-  //   final motDePasse = _passwordController.text;
-
-  //   final result = await ApiService.instance.register(
-  //     prenom: prenom,
-  //     nom: nom,
-  //     telephone: telephone,
-  //     motDePasse: motDePasse,
-  //   );
-
-  //   if (!mounted) return;
-  //   Navigator.of(context).push(
-  //     MaterialPageRoute(
-  //       builder: (_) => OtpScreen(
-  //         prenom: prenom,
-  //         nom: nom,
-  //         telephone: telephone,
-  //         motDePasse: motDePasse,
-  //         otpDemo: result['otpDemo'] as String?,
-  //       ),
-  //     ),
-  //   );
-  // }
 
   Future<void> _onSignUp() async {
     if (_envoiEnCours) return;
@@ -120,7 +84,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             nom: nom,
             telephone: telephone,
             motDePasse: motDePasse,
-            otpDemo: result['otpDemo'] as String?,
+            // otpDemo: result['otpDemo'] as String?,
           ),
         ),
       );
@@ -275,7 +239,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         _buildTermsRow(),
                         const SizedBox(height: 24),
                         _buildSignUpButton(),
-                        const SizedBox(height: 30),
+                        // const SizedBox(height: 12),
+                        // const CaseOffresWhatsapp(),
+                        // const SizedBox(height: 30),
+                        const SizedBox(height: 12),
+                        const CaseOffresWhatsapp(),
+                        const SizedBox(height: 24),
                         _buildDivider(),
                         const SizedBox(height: 20),
                         _buildSocialRow(),

@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
+import 'package:kmaa_e_tickets/mon-app/bienvenue/bandeau_bienvenue.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/routes-menu.dart';
+import 'package:kmaa_e_tickets/mon-app/marketing/offres_whatsapp.dart';
 import 'package:kmaa_e_tickets/mon-app/profil-user/profil_user.dart';
 import 'package:kmaa_e_tickets/mon-app/widgets/loading_button.dart';
 
@@ -15,16 +17,12 @@ class OtpScreen extends StatefulWidget {
     required this.nom,
     required this.telephone,
     required this.motDePasse,
-    this.otpDemo,
   });
 
   final String prenom;
   final String nom;
   final String telephone;
   final String motDePasse;
-
-  /// Présent uniquement en mode démo (pas de vrai WhatsApp branché).
-  final String? otpDemo;
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -73,46 +71,10 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   void dispose() {
+    _minuteur?.cancel();
     _codeController.dispose();
     super.dispose();
   }
-
-  // Future<void> _verifier() async {
-  //   setState(() {
-  //     _loading = true;
-  //     _erreur = null;
-  //   });
-  //   final ok = await ApiService.instance.verifierOtp(
-  //     telephone: widget.telephone,
-  //     code: _codeController.text.trim(),
-  //   );
-  //   if (!mounted) return;
-  //   setState(() => _loading = false);
-
-  //   if (!ok) {
-  //     setState(
-  //       () => _erreur = 'Code incorrect. Vérifiez le message WhatsApp reçu.',
-  //     );
-  //     return;
-  //   }
-
-  //   await UserStore.instance.save(
-  //     UserProfile(
-  //       prenom: widget.prenom,
-  //       nom: widget.nom,
-  //       telephone: widget.telephone,
-  //       motDePasseHash: hasherMotDePasse(widget.motDePasse),
-  //       estAuthentifie: true,
-  //     ),
-  //   );
-
-  //   if (!mounted) return;
-  //   Navigator.of(context).pushNamedAndRemoveUntil(
-  //     AppRoutes.home,
-  //     (route) => false,
-  //     arguments: {'nom': widget.nom, 'prenom': widget.prenom},
-  //   );
-  // }
 
   Future<void> _verifier() async {
     final code = _codeController.text.trim();
@@ -149,29 +111,14 @@ class _OtpScreenState extends State<OtpScreen> {
       if (mounted) setState(() => _loading = false);
     }
 
-    // Compte vérifié : ApiService a déjà enregistré la session sur le téléphone.
-    //   await UserStore.instance.save(
-    //     UserProfile(
-    //       prenom: widget.prenom,
-    //       nom: widget.nom,
-    //       telephone: widget.telephone,
-    //       motDePasseHash: hasherMotDePasse(widget.motDePasse),
-    //       estAuthentifie: true,
-    //     ),
-    //   );
-
-    //   if (!mounted) return;
-    //   Navigator.of(context).pushNamedAndRemoveUntil(
-    //     AppRoutes.home,
-    //     (route) => false,
-    //     arguments: {'nom': widget.nom, 'prenom': widget.prenom},
-    //   );
-    // }
-
     // Compte vérifié : la session est enregistrée. Les noms viennent du serveur.
     final profil = await UserStore.instance.ouvrirSession(
       telephone: widget.telephone,
     );
+
+    // Offres cochées à l'inscription, puis message de bienvenue sur l'accueil.
+    await ChoixOffres.envoyerSiNecessaire();
+    Bienvenue.afficher.value = true;
 
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil(
@@ -223,24 +170,6 @@ class _OtpScreenState extends State<OtpScreen> {
                     color: AppColors.textMuted,
                   ),
                 ),
-                if (widget.otpDemo != null) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'votre code est le : ${widget.otpDemo}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.secondary,
-                      ),
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 28),
                 TextField(
                   controller: _codeController,
@@ -273,7 +202,6 @@ class _OtpScreenState extends State<OtpScreen> {
                     ),
                   ),
                 ],
-
                 LoadingButton(
                   label: 'Vérifier',
                   loading: _loading,

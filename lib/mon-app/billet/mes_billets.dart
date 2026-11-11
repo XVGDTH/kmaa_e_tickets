@@ -359,7 +359,7 @@ class _MesBilletsState extends State<MesBillets> {
                           ),
                         ),
                       ),
-                      // _buildStatusChip(upcoming),
+
                       _buildStatusChip(b),
                     ],
                   ),
@@ -446,32 +446,17 @@ class _MesBilletsState extends State<MesBillets> {
     );
   }
 
-  // Widget _buildStatusChip(bool upcoming) {
-  //   return Container(
-  //     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-  //     decoration: BoxDecoration(
-  //       color: upcoming
-  //           ? AppColors.primary.withOpacity(0.12)
-  //           : AppColors.textMuted.withOpacity(0.12),
-  //       borderRadius: BorderRadius.circular(8),
-  //     ),
-  //     child: Text(
-  //       upcoming ? 'À venir' : 'Terminé',
-  //       style: TextStyle(
-  //         fontSize: 10.5,
-  //         fontWeight: FontWeight.w800,
-  //         color: upcoming ? AppColors.primary : AppColors.textMuted,
-  //       ),
-  //     ),
-  //   );
-  // }
   Widget _buildStatusChip(Billet b) {
     final couleur = switch (b.statut) {
       'utilise' => const Color(0xFF16A34A),
       'annule' => AppColors.error,
       'rembourse' => const Color(0xFF7C3AED),
       'en_attente_paiement' => const Color(0xFFF59E0B),
-      _ => b.estAVenir ? AppColors.primary : AppColors.textMuted,
+      // _ => b.estAVenir ? AppColors.primary : AppColors.textMuted,
+      _ =>
+        b.estExpire
+            ? AppColors.textMuted
+            : (b.departManque ? const Color(0xFFF59E0B) : AppColors.primary),
     };
 
     return Container(

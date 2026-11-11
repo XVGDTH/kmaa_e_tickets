@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 const String kServiceClientAffichage = '54 78 55 55';
 const String kServiceClientTelephone = '+22654785555';
+const String kWhatsappAssistance = '22654785555';
 
 /// Jours et heures d'écoute, par exemple 'Du lundi au samedi, de 8h à 18h'.
 /// Laisse vide tant que tu ne les as pas fixés : la ligne n'est alors pas affichée.

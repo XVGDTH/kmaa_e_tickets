@@ -89,7 +89,8 @@ class _ChoixOperateurState extends State<ChoixOperateur> {
         _processing = false;
         _step = _Step.transport;
       });
-      _message('Taxe de ${Tarif.format(widget.taxe)} payée avec succès.');
+      // _message('Taxe de ${Tarif.format(widget.taxe)} payée avec succès.');
+      _message('Frais de ${Tarif.format(widget.taxe)} payés avec succès.');
       return;
     }
 
@@ -309,7 +310,8 @@ class _ChoixOperateurState extends State<ChoixOperateur> {
       children: [
         Expanded(
           child: _buildStepChip(
-            '1. Taxe',
+            // '1. Taxe',
+            '1. Frais',
             Tarif.format(widget.taxe),
             _Step.taxe,
           ),
@@ -572,7 +574,8 @@ class _ChoixOperateurState extends State<ChoixOperateur> {
   Widget _buildPayButton() {
     final radius = BorderRadius.circular(8);
     final label = _step == _Step.taxe
-        ? 'Payer la taxe (${Tarif.format(widget.taxe)})'
+        // ? 'Payer la taxe (${Tarif.format(widget.taxe)})'
+        ? 'Payer les frais (${Tarif.format(widget.taxe)})'
         : 'Payer le transport (${Tarif.format(widget.montantTransport)})';
 
     return SizedBox(

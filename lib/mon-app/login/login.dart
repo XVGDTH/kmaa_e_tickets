@@ -1,562 +1,16 @@
-// import 'package:flutter/material.dart';
-// import 'package:flutter/services.dart';
-
-// import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
-// import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
-// import 'package:kmaa_e_tickets/mon-app/constantes/routes-menu.dart';
-// import 'package:kmaa_e_tickets/mon-app/profil-user/profil_user.dart';
-// import 'package:kmaa_e_tickets/mon-app/constantes/validators.dart';
-
-// class Login extends StatefulWidget {
-//   const Login({super.key});
-
-//   @override
-//   State<Login> createState() => _LoginState();
-// }
-
-// class _LoginState extends State<Login> {
-//   final _formKey = GlobalKey<FormState>();
-
-//   final _telephoneController = TextEditingController();
-//   final _passwordController = TextEditingController();
-
-//   bool _obscurePassword = true;
-//   bool _isLoading = false;
-
-//   @override
-//   void dispose() {
-//     _telephoneController.dispose();
-//     _passwordController.dispose();
-//     super.dispose();
-//   }
-
-//   Future<void> _onLogin() async {
-//     FocusManager.instance.primaryFocus?.unfocus();
-
-//     if (!_formKey.currentState!.validate()) {
-//       return;
-//     }
-
-//     setState(() {
-//       _isLoading = true;
-//     });
-
-//     final telephone = _telephoneController.text.trim();
-
-//     try {
-//       final ok = await ApiService.instance.login(
-//         telephone: telephone,
-//         motDePasse: _passwordController.text,
-//       );
-
-//       if (!ok) {
-//         if (!mounted) return;
-
-//         setState(() {
-//           _isLoading = false;
-//         });
-
-//         ScaffoldMessenger.of(context).showSnackBar(
-//           SnackBar(
-//             content: const Text('Identifiants incorrects.'),
-//             backgroundColor: AppColors.error,
-//           ),
-//         );
-
-//         return;
-//       }
-
-//       final profilActuel = UserStore.instance.profile.value;
-
-//       await UserStore.instance.save(
-//         (profilActuel ?? UserProfile(prenom: '', nom: '', telephone: telephone))
-//             .copyWith(telephone: telephone, estAuthentifie: true),
-//       );
-
-//       if (!mounted) return;
-
-//       final profil = UserStore.instance.profile.value!;
-
-//       Navigator.of(context).pushReplacementNamed(
-//         AppRoutes.home,
-//         arguments: {'nom': profil.nom, 'prenom': profil.prenom},
-//       );
-//     } catch (error) {
-//       if (!mounted) return;
-
-//       setState(() {
-//         _isLoading = false;
-//       });
-
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         SnackBar(
-//           content: const Text(
-//             'Une erreur est survenue. Vérifiez votre connexion.',
-//           ),
-//           backgroundColor: AppColors.error,
-//         ),
-//       );
-//     }
-//   }
-
-//   void _onSignUp() {
-//     Navigator.of(context).pushReplacementNamed('/signup');
-//   }
-
-//   void _onForgotPassword() {
-//     Navigator.of(context).pushNamed('/forgot-password');
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final mediaQuery = MediaQuery.of(context);
-//     final keyboardIsOpen = mediaQuery.viewInsets.bottom > 0;
-
-//     return AnnotatedRegion<SystemUiOverlayStyle>(
-//       value: SystemUiOverlayStyle.light,
-//       child: Scaffold(
-//         // ✅ CORRECTION : On utilise le ROUGE pour le fond sombre
-//         // backgroundColor: AppColors.secondary,
-//         backgroundColor: AppColors.background,
-//         resizeToAvoidBottomInset: true,
-//         body: SafeArea(
-//           bottom: false,
-//           child: LayoutBuilder(
-//             builder: (context, constraints) {
-//               final screenHeight = constraints.maxHeight;
-
-//               final topAreaHeight = keyboardIsOpen
-//                   ? 120.0
-//                   : screenHeight < 650
-//                   ? 145.0
-//                   : 175.0;
-
-//               final footerHeight = keyboardIsOpen ? 0.0 : 88.0;
-
-//               return Stack(
-//                 children: [
-//                   // Partie supérieure colorée avec logo.
-//                   _buildTopBrand(height: topAreaHeight),
-
-//                   Positioned(
-//                     top: topAreaHeight - 8,
-//                     left: 0,
-//                     right: 0,
-//                     bottom: footerHeight,
-//                     child: Stack(
-//                       children: [
-//                         // Contour dessiné le long de la vraie courbe,
-//                         // jamais rogné par le découpage de la carte.
-//                         Positioned.fill(
-//                           child: CustomPaint(
-//                             painter: _LoginCardBorderPainter(),
-//                           ),
-//                         ),
-//                         ClipPath(
-//                           clipper: _LoginCardClipper(),
-//                           child: Container(
-//                             color: AppColors.white,
-//                             child: SingleChildScrollView(
-//                               keyboardDismissBehavior:
-//                                   ScrollViewKeyboardDismissBehavior.onDrag,
-//                               padding: EdgeInsets.fromLTRB(
-//                                 28,
-//                                 keyboardIsOpen ? 34 : 38,
-//                                 28,
-//                                 28,
-//                               ),
-//                               child: Form(
-//                                 key: _formKey,
-//                                 child: _buildLoginForm(),
-//                               ),
-//                             ),
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-
-//                   // Footer coloré.
-//                   if (!keyboardIsOpen)
-//                     Positioned(
-//                       left: 0,
-//                       right: 0,
-//                       bottom: 0,
-//                       height: footerHeight,
-//                       child: _buildFooter(),
-//                     ),
-//                 ],
-//               );
-//             },
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildTopBrand({required double height}) {
-//     return Positioned(
-//       top: 0,
-//       left: 0,
-//       right: 0,
-//       height: height,
-//       child: Container(
-//         decoration: const BoxDecoration(gradient: AppColors.buttonGradient),
-//         child: Center(
-//           child: Padding(
-//             padding: const EdgeInsets.only(bottom: 12),
-//             child: Container(
-//               width: 76,
-//               height: 76,
-//               decoration: const BoxDecoration(
-//                 color: AppColors.white,
-//                 shape: BoxShape.circle,
-//                 boxShadow: [
-//                   BoxShadow(
-//                     color: Color(0x33000000),
-//                     blurRadius: 10,
-//                     offset: Offset(0, 4),
-//                   ),
-//                 ],
-//               ),
-//               child: ShaderMask(
-//                 shaderCallback: (bounds) =>
-//                     AppColors.buttonGradient.createShader(bounds),
-//                 child: const Icon(
-//                   Icons.directions_bus_filled_rounded,
-//                   color: AppColors.white,
-//                   size: 42,
-//                 ),
-//               ),
-//             ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildLoginForm() {
-//     return Column(
-//       crossAxisAlignment: CrossAxisAlignment.stretch,
-//       children: [
-//         const SizedBox(height: 8),
-
-//         const Text(
-//           'Connexion',
-//           textAlign: TextAlign.center,
-//           style: TextStyle(
-//             color: AppColors.textDark,
-//             fontSize: 25,
-//             fontWeight: FontWeight.w700,
-//             letterSpacing: -0.3,
-//           ),
-//         ),
-
-//         const SizedBox(height: 10),
-
-//         const SizedBox(height: 36),
-
-//         // Champ Téléphone
-//         _buildUnderlineField(
-//           controller: _telephoneController,
-//           hintText: 'Numéro de téléphone',
-//           keyboardType: TextInputType.phone,
-//           textInputAction: TextInputAction.next,
-//           validator: Validators.telephoneBurkina,
-//         ),
-
-//         const SizedBox(height: 22),
-
-//         // Champ Mot de passe + Lien oublié
-//         // Champ Mot de passe
-//         _buildUnderlineField(
-//           controller: _passwordController,
-//           hintText: 'Mot de passe',
-//           obscureText: _obscurePassword,
-//           textInputAction: TextInputAction.done,
-//           onSubmitted: (_) => _onLogin(),
-//           validator: (value) {
-//             if (value == null || value.trim().isEmpty) {
-//               return 'Entrez votre mot de passe';
-//             }
-//             if (value.length < 4) {
-//               return 'Mot de passe trop court';
-//             }
-//             return null;
-//           },
-//           suffixIcon: IconButton(
-//             onPressed: () =>
-//                 setState(() => _obscurePassword = !_obscurePassword),
-//             tooltip: _obscurePassword
-//                 ? 'Afficher le mot de passe'
-//                 : 'Masquer le mot de passe',
-//             splashRadius: 20,
-//             icon: Icon(
-//               _obscurePassword
-//                   ? Icons.visibility_off_outlined
-//                   : Icons.visibility_outlined,
-//               color: AppColors.textMuted,
-//               size: 19,
-//             ),
-//           ),
-//         ),
-
-//         const SizedBox(height: 8),
-
-//         // Lien oublié, bien aligné sous le champ
-//         Align(
-//           alignment: Alignment.centerRight,
-//           child: InkWell(
-//             onTap: _onForgotPassword,
-//             borderRadius: BorderRadius.circular(4),
-//             child: const Padding(
-//               padding: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-//               child: Text(
-//                 'Mot de passe oublié ?',
-//                 style: TextStyle(
-//                   color: AppColors.secondary,
-//                   fontSize: 12,
-//                   fontWeight: FontWeight.w600,
-//                 ),
-//               ),
-//             ),
-//           ),
-//         ),
-
-//         const SizedBox(height: 18),
-
-//         _buildLoginButton(),
-
-//         const SizedBox(height: 26),
-//       ],
-//     );
-//   }
-
-//   Widget _buildUnderlineField({
-//     required TextEditingController controller,
-//     required String hintText,
-//     required String? Function(String?) validator,
-//     TextInputType? keyboardType,
-//     TextInputAction textInputAction = TextInputAction.next,
-//     bool obscureText = false,
-//     ValueChanged<String>? onSubmitted,
-//     Widget? suffixIcon,
-//   }) {
-//     return TextFormField(
-//       controller: controller,
-//       obscureText: obscureText,
-//       validator: validator,
-//       keyboardType: keyboardType,
-//       textInputAction: textInputAction,
-//       onFieldSubmitted: onSubmitted,
-//       // ✅ CORRECTION : Curseur en Ambre (primary)
-//       cursorColor: AppColors.secondary,
-//       style: const TextStyle(
-//         color: AppColors.textDark,
-//         fontSize: 15,
-//         fontWeight: FontWeight.w500,
-//       ),
-//       decoration: InputDecoration(
-//         hintText: hintText,
-//         hintStyle: const TextStyle(
-//           color: AppColors.textMuted,
-//           fontSize: 14,
-//           fontWeight: FontWeight.w400,
-//         ),
-//         prefixIcon: hintText.contains('téléphone')
-//             ? const Icon(
-//                 Icons.phone_outlined,
-//                 color: AppColors.textMuted,
-//                 size: 20,
-//               )
-//             : const Icon(
-//                 Icons.lock_outline,
-//                 color: AppColors.textMuted,
-//                 size: 20,
-//               ),
-//         prefixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 0),
-
-//         errorStyle: const TextStyle(
-//           color: AppColors.error,
-//           fontSize: 11,
-//           height: 1.2,
-//         ),
-
-//         contentPadding: const EdgeInsets.only(
-//           left: 0,
-//           right: 0,
-//           top: 12,
-//           bottom: 12,
-//         ),
-
-//         border: const UnderlineInputBorder(
-//           borderSide: BorderSide(color: AppColors.border, width: 1),
-//         ),
-//         enabledBorder: const UnderlineInputBorder(
-//           borderSide: BorderSide(color: AppColors.border, width: 1),
-//         ),
-//         // ✅ CORRECTION : Focus en Ambre (primary)
-//         focusedBorder: const UnderlineInputBorder(
-//           borderSide: BorderSide(color: AppColors.primary, width: 2),
-//         ),
-//         errorBorder: const UnderlineInputBorder(
-//           borderSide: BorderSide(color: AppColors.error, width: 1),
-//         ),
-//         focusedErrorBorder: const UnderlineInputBorder(
-//           borderSide: BorderSide(color: AppColors.error, width: 2),
-//         ),
-//         suffixIcon: suffixIcon,
-//         suffixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 0),
-//       ),
-//     );
-//   }
-
-//   Widget _buildLoginButton() {
-//     return SizedBox(
-//       height: 48,
-//       child: ElevatedButton(
-//         onPressed: _isLoading ? null : _onLogin,
-//         style: ElevatedButton.styleFrom(
-//           // ✅ CORRECTION : On utilise le dégradé de ta charte
-//           backgroundColor: Colors.transparent,
-//           shadowColor: Colors.transparent,
-//           padding: EdgeInsets.zero,
-//           shape: RoundedRectangleBorder(
-//             borderRadius: BorderRadius.circular(10),
-//           ),
-//         ),
-//         child: Ink(
-//           decoration: BoxDecoration(
-//             // Dégradé Ambre → Rouge défini dans ta charte
-//             gradient: AppColors.buttonGradient,
-//             borderRadius: BorderRadius.circular(10),
-//           ),
-//           child: Container(
-//             alignment: Alignment.center,
-//             child: _isLoading
-//                 ? const SizedBox(
-//                     width: 22,
-//                     height: 22,
-//                     child: CircularProgressIndicator(
-//                       strokeWidth: 2.2,
-//                       color: AppColors.white,
-//                     ),
-//                   )
-//                 : const Text(
-//                     'Se connecter',
-//                     style: TextStyle(
-//                       color: AppColors.white,
-//                       fontSize: 14,
-//                       fontWeight: FontWeight.w600,
-//                     ),
-//                   ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildFooter() {
-//     return Container(
-//       decoration: const BoxDecoration(gradient: AppColors.buttonGradient),
-//       child: Center(
-//         child: InkWell(
-//           onTap: _onSignUp,
-//           borderRadius: BorderRadius.circular(8),
-//           child: Padding(
-//             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-//             child: RichText(
-//               textAlign: TextAlign.center,
-//               text: const TextSpan(
-//                 style: TextStyle(
-//                   color: AppColors.white,
-//                   fontSize: 12,
-//                   fontWeight: FontWeight.w400,
-//                 ),
-//                 children: [
-//                   TextSpan(text: 'Vous n\u2019avez pas encore de compte ? '),
-//                   TextSpan(
-//                     text: 'Créer un compte',
-//                     style: TextStyle(
-//                       color: AppColors.white,
-//                       fontWeight: FontWeight.w800,
-//                       decoration: TextDecoration.underline,
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-// /// Forme blanche asymétrique inspirée de tes calculs.
-// class _LoginCardClipper extends CustomClipper<Path> {
-//   @override
-//   Path getClip(Size size) {
-//     final width = size.width;
-//     final height = size.height;
-
-//     final path = Path();
-
-//     path.moveTo(0, 78);
-//     path.cubicTo(0, 28, 34, 0, 88, 0);
-//     path.lineTo(width, 0);
-//     path.lineTo(width, height - 75);
-//     path.cubicTo(width, height - 25, width - 36, height, width - 88, height);
-//     path.lineTo(0, height);
-//     path.close();
-
-//     return path;
-//   }
-
-//   @override
-//   bool shouldReclip(covariant CustomClipper<Path> oldClipper) {
-//     return false;
-//   }
-// }
-
-// /// Dessine le contour de la carte en suivant exactement la même courbe
-// /// que _LoginCardClipper — contrairement à un simple Border, ce tracé
-// /// n'est jamais rogné par le ClipPath.
-
-// class _LoginCardBorderPainter extends CustomPainter {
-//   @override
-//   void paint(Canvas canvas, Size size) {
-//     final path = _LoginCardClipper().getClip(size);
-
-//     // Halo blanc qui sépare le contour coloré du dégradé.
-//     final halo = Paint()
-//       ..color = AppColors.white
-//       ..style = PaintingStyle.stroke
-//       ..strokeWidth = 6;
-//     canvas.drawPath(path, halo);
-
-//     // Contour coloré, par-dessus le halo.
-//     final paint = Paint()
-//       ..color = AppColors.secondary
-//       ..style = PaintingStyle.stroke
-//       ..strokeWidth = 2.5;
-//     canvas.drawPath(path, paint);
-//   }
-
-//   @override
-//   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-// }
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
-import 'package:kmaa_e_tickets/mon-app/authentification/formulaire_otp.dart';
+import 'package:kmaa_e_tickets/mon-app/authentification/reset_password_screen.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/routes-menu.dart';
 import 'package:kmaa_e_tickets/mon-app/profil-user/profil_user.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/validators.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/gradient-button.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -573,22 +27,83 @@ class _LoginState extends State<Login> {
 
   bool _obscurePassword = true;
   bool _isLoading = false;
+  int _secondesRestantes = 0;
+  Timer? _minuteurVerrouillage;
 
   @override
   void dispose() {
+    _minuteurVerrouillage?.cancel();
     _telephoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  // Future<void> _onLogin() async {
+  //   FocusManager.instance.primaryFocus?.unfocus();
+  //   if (_isLoading) return;
+  //   if (!_formKey.currentState!.validate()) return;
+
+  //   setState(() => _isLoading = true);
+
+  //   // « 70 12 34 56 » et « 70123456 » désignent le même compte.
+  //   final telephone = _telephoneController.text.replaceAll(RegExp(r'\D'), '');
+  //   final motDePasse = _passwordController.text;
+
+  //   try {
+  //     final ok = await ApiService.instance.login(
+  //       telephone: telephone,
+  //       motDePasse: motDePasse,
+  //     );
+  //     if (!mounted) return;
+
+  //     if (!ok) {
+  //       // Inscription jamais terminée : on envoie un nouveau code et on reprend la vérification.
+  //       if (ApiService.instance.derniereErreurCode == 'telephone_non_verifie') {
+  //         await ApiService.instance.renvoyerOtp(telephone);
+  //         if (!mounted) return;
+  //         Navigator.of(context).push(
+  //           MaterialPageRoute(
+  //             builder: (_) => OtpScreen(
+  //               prenom: '',
+  //               nom: '',
+  //               telephone: telephone,
+  //               motDePasse: motDePasse,
+  //             ),
+  //           ),
+  //         );
+  //         return;
+  //       }
+  //       _afficherErreur(
+  //         ApiService.instance.derniereErreur ?? 'Identifiants incorrects.',
+  //       );
+  //       return;
+  //     }
+
+  //     final profil = await UserStore.instance.ouvrirSession(
+  //       telephone: telephone,
+  //     );
+  //     if (!mounted) return;
+
+  //     Navigator.of(context).pushNamedAndRemoveUntil(
+  //       AppRoutes.home,
+  //       (route) => false,
+  //       arguments: {'nom': profil.nom, 'prenom': profil.prenom},
+  //     );
+  //   } on ApiException catch (e) {
+  //     if (!mounted) return;
+  //     _afficherErreur(e.message);
+  //   } finally {
+  //     if (mounted) setState(() => _isLoading = false);
+  //   }
+  // }
+
   Future<void> _onLogin() async {
     FocusManager.instance.primaryFocus?.unfocus();
-    if (_isLoading) return;
+    if (_isLoading || _secondesRestantes > 0) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    // « 70 12 34 56 » et « 70123456 » désignent le même compte.
     final telephone = _telephoneController.text.replaceAll(RegExp(r'\D'), '');
     final motDePasse = _passwordController.text;
 
@@ -599,34 +114,69 @@ class _LoginState extends State<Login> {
       );
       if (!mounted) return;
 
-      if (!ok) {
-        // Inscription jamais terminée : on envoie un nouveau code et on reprend la vérification.
-        if (ApiService.instance.derniereErreurCode == 'telephone_non_verifie') {
-          await ApiService.instance.renvoyerOtp(telephone);
-          if (!mounted) return;
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => OtpScreen(
-                prenom: '',
-                nom: '',
-                telephone: telephone,
-                motDePasse: motDePasse,
-              ),
-            ),
-          );
-          return;
-        }
+      // 1) Compte verrouillé (6 échecs atteints)
+      // if (ApiService.instance.derniereErreurCode ==
+      //     'compte_verrouille_otp_requis') {
+      //   _afficherErreur(
+      //     'Compte verrouillé. Un code WhatsApp vous a été envoyé.',
+      //   );
+      //   // Affiche l'écran de reset (à créer si tu ne l'as pas encore)
+      //   // Navigator.push(...)
+      //   return;
+      // }
+      // 1) Compte verrouillé (4 échecs atteints)
+      if (ApiService.instance.compteVerrouilleOtpRequis) {
+        setState(
+          () {},
+        ); // <--- INDISPENSABLE : force Flutter à cacher le formulaire et afficher le blocage
         _afficherErreur(
-          ApiService.instance.derniereErreur ?? 'Identifiants incorrects.',
+          'Compte verrouillé. Veuillez changer votre mot de passe.',
         );
         return;
       }
 
+      // 2) Pause de 30s (3 échecs atteints)
+      if (ApiService.instance.derniereErreurCode == 'trop_de_tentatives') {
+        final delai = ApiService.instance.delaiAvantReessai ?? 30;
+        _demarrerCompteARebours(delai);
+        _afficherErreur('Trop d\'échecs. Patientez $delai secondes.');
+        return;
+      }
+
+      // 3) Erreur classique (1 ou 2 échecs)
+      // if (!ok) {
+      //   _afficherErreur('Attention : identifiants incorrects. Il vous reste ${3 - (ApiService.instance.tentativesRestantes ?? 0)} essai(s) avant la pause.');
+      //   return;
+      // }
+      if (!ok) {
+        // Si c'est une pause (3ème tentative)
+        if (ApiService.instance.delaiAvantReessai != null) {
+          _demarrerCompteARebours(ApiService.instance.delaiAvantReessai!);
+          _afficherErreur('Trop de tentatives. Patientez 30 secondes.');
+          return;
+        }
+
+        // Si le compte vient d'être verrouillé (6ème tentative)
+        if (ApiService.instance.compteVerrouilleOtpRequis) {
+          setState(() {}); // Force le rebuild pour afficher l'écran de blocage
+          _afficherErreur('Compte verrouillé. Changez votre mot de passe.');
+          return;
+        }
+
+        // Sinon : message d'attention classique
+        final restantes = ApiService.instance.tentativesRestantes;
+        final msg = restantes != null
+            ? 'Attention ! Identifiants incorrects. Il vous reste $restantes essai(s) avant le blocage temporaire.'
+            : 'Attention ! Identifiants incorrects.';
+        _afficherErreur(msg);
+        return;
+      }
+
+      // 4) Succès
       final profil = await UserStore.instance.ouvrirSession(
         telephone: telephone,
       );
       if (!mounted) return;
-
       Navigator.of(context).pushNamedAndRemoveUntil(
         AppRoutes.home,
         (route) => false,
@@ -640,14 +190,41 @@ class _LoginState extends State<Login> {
     }
   }
 
+  void _demarrerCompteARebours(int secondes) {
+    _minuteurVerrouillage?.cancel();
+    setState(() => _secondesRestantes = secondes);
+    _minuteurVerrouillage = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() => _secondesRestantes--);
+      if (_secondesRestantes <= 0) t.cancel();
+    });
+  }
+
+  /// Ouvre l'écran de reset (OTP + nouvedeau mdp) et ferme Login à son retour.
+  Future<void> _ouvrirResetPassword(String telephone) async {
+    // On envoie (ou renvoie) le code juste avant d'ouvrir l'écran.
+    try {
+      await ApiService.instance.demanderReinitialisation(telephone);
+    } catch (_) {
+      // Peu importe : l'écran permet de renvoyer le code.
+    }
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => ResetPasswordScreen(telephone: telephone),
+      ),
+    );
+  }
+
   void _afficherErreur(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppColors.error),
     );
   }
-  //
-  //
-  //
 
   void _onSignUp() {
     Navigator.of(context).pushReplacementNamed('/signup');
@@ -688,115 +265,324 @@ class _LoginState extends State<Login> {
               const SizedBox(height: 50),
 
               // Formulaire
+              // Formulaire
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
-                        vertical: 10,
-                      ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight - 20,
+                child: _secondesRestantes > 0
+                    // 1. ÉCRAN DE PAUSE (30 secondes)
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.timer_outlined,
+                              size: 48,
+                              color: AppColors.error,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Patientez $_secondesRestantes s...',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                color: AppColors.error,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        child: Form(
-                          key: _formKey,
+                      )
+                    //
+                    //
+                    //
+                    // 2. ÉCRAN DE BLOCAGE (Compte verrouillé)
+                    // : ApiService.instance.compteVerrouilleOtpRequis
+                    // ? Center(
+                    //     child: Column(
+                    //       mainAxisAlignment: MainAxisAlignment.center,
+                    //       children: [
+                    //         const Icon(
+                    //           Icons.lock_outline,
+                    //           size: 48,
+                    //           color: AppColors.error,
+                    //         ),
+                    //         const SizedBox(height: 16),
+                    //         const Text(
+                    //           'Compte temporairement bloqué suite à trop de tentatives.',
+                    //           textAlign: TextAlign.center,
+                    //           style: TextStyle(
+                    //             fontSize: 16,
+                    //             color: AppColors.textDark,
+                    //           ),
+                    //         ),
+                    //         const SizedBox(height: 12),
+                    //         TextButton(
+                    //           onPressed: () {
+                    //             Navigator.of(context).pushReplacement(
+                    //               MaterialPageRoute(
+                    //                 builder: (_) => ResetPasswordScreen(
+                    //                   telephone: _telephoneController.text
+                    //                       .replaceAll(RegExp(r'\D'), ''),
+                    //                 ),
+                    //               ),
+                    //             );
+                    //           },
+                    //           child: const Text(
+                    //             'Cliquez ici pour changer votre mot de passe',
+                    //             style: TextStyle(
+                    //               fontSize: 16,
+                    //               fontWeight: FontWeight.w700,
+                    //               color: AppColors.accentText,
+                    //               decoration: TextDecoration.underline,
+                    //             ),
+                    //           ),
+                    //         ),
+                    //       ],
+                    //     ),
+                    //   )
+                    // 2. ÉCRAN DE BLOCAGE (Compte verrouillé)
+                    : ApiService.instance.compteVerrouilleOtpRequis
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // --- HAUT DU FORMULAIRE ---
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                              const Icon(
+                                Icons.lock_person_outlined,
+                                size: 64,
+                                color: AppColors.error,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Compte temporairement bloqué',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.error,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Suite à de multiples tentatives infructueuses, votre compte est bloqué. Veuillez changer votre mot de passe ou contacter l\'assistance.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textDark,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+
+                              // BOUTON RÉINITIALISER
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pushReplacement(
+                                    MaterialPageRoute(
+                                      builder: (_) => ResetPasswordScreen(
+                                        telephone: _telephoneController.text
+                                            .replaceAll(RegExp(r'\D'), ''),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                  'Changer mon mot de passe par WhatsApp',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.accentText,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 32),
+                              const Text(
+                                "Besoin d'aide immédiate ?",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // BOUTONS APPEL ET WHATSAPP
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Text(
-                                    "Connexion",
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: AppColors.textDark,
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 30),
-
-                                  // Champ Téléphone
-                                  _buildField(
-                                    controller: _telephoneController,
-                                    label: 'Numéro de téléphone',
-                                    icon: Icons.phone_outlined,
-                                    keyboardType: TextInputType.phone,
-                                    textInputAction: TextInputAction.next,
-                                    validator: Validators.telephoneBurkina,
-                                  ),
-                                  const SizedBox(height: 16),
-
-                                  // Champ Mot de passe
-                                  _buildField(
-                                    controller: _passwordController,
-                                    label: 'Mot de passe',
-                                    icon: Icons.lock_outline,
-                                    obscure: _obscurePassword,
-                                    textInputAction: TextInputAction.done,
-                                    onToggle: () => setState(
-                                      () =>
-                                          _obscurePassword = !_obscurePassword,
-                                    ),
-                                    validator: (v) {
-                                      if (v == null || v.isEmpty) {
-                                        return 'Entrez votre mot de passe';
-                                      }
-                                      if (v.length < 4) {
-                                        return 'Mot de passe trop court';
-                                      }
-                                      return null;
+                                  // APPEL TELEPHONIQUE
+                                  OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final Uri url = Uri.parse(
+                                        'tel:+22664479972',
+                                      );
+                                      await launchUrl(url);
                                     },
-                                    onSubmitted: (_) => _onLogin(),
+                                    icon: const Icon(
+                                      Icons.phone,
+                                      color: AppColors.primary,
+                                    ),
+                                    label: const Text(
+                                      'Appeler',
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                        color: AppColors.primary,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 12,
+                                      ),
+                                    ),
                                   ),
-
-                                  const SizedBox(height: 12),
-
-                                  // Lien Mot de passe oublié
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: InkWell(
-                                      onTap: _onForgotPassword,
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: const Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 2,
-                                          vertical: 4,
-                                        ),
-                                        child: Text(
-                                          'Mot de passe oublié ?',
-                                          style: TextStyle(
-                                            color: AppColors.accentText,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
+                                  const SizedBox(width: 16),
+                                  // WHATSAPP
+                                  ElevatedButton.icon(
+                                    onPressed: () async {
+                                      final Uri url = Uri.parse(
+                                        'https://wa.me/22664479972',
+                                      );
+                                      await launchUrl(
+                                        url,
+                                        mode: LaunchMode.externalApplication,
+                                      );
+                                    },
+                                    icon: const Icon(
+                                      Icons.message,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Text(
+                                      'WhatsApp',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(
+                                        0xFF25D366,
+                                      ), // Vert WhatsApp
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 12,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-
-                              // --- BAS DU FORMULAIRE (Bouton) ---
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 40.0,
-                                  bottom: 20,
-                                ),
-                                child: _buildLoginButton(),
-                              ),
                             ],
                           ),
                         ),
+                      )
+                    //
+                    // fin du changement
+                    //
+                    // 3. FORMULAIRE NORMAL (Ton code original)
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          return SingleChildScrollView(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 28,
+                              vertical: 10,
+                            ),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight: constraints.maxHeight - 20,
+                              ),
+                              child: Form(
+                                key: _formKey,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // --- HAUT DU FORMULAIRE ---
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        const Text(
+                                          "Connexion",
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: AppColors.textDark,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 30),
+                                        _buildField(
+                                          controller: _telephoneController,
+                                          label: 'Numéro de téléphone',
+                                          icon: Icons.phone_outlined,
+                                          keyboardType: TextInputType.phone,
+                                          textInputAction: TextInputAction.next,
+                                          validator:
+                                              Validators.telephoneBurkina,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        _buildField(
+                                          controller: _passwordController,
+                                          label: 'Mot de passe',
+                                          icon: Icons.lock_outline,
+                                          obscure: _obscurePassword,
+                                          textInputAction: TextInputAction.done,
+                                          onToggle: () => setState(
+                                            () => _obscurePassword =
+                                                !_obscurePassword,
+                                          ),
+                                          validator: (v) {
+                                            if (v == null || v.isEmpty) {
+                                              return 'Entrez votre mot de passe';
+                                            }
+                                            if (v.length < 4) {
+                                              return 'Mot de passe trop court';
+                                            }
+                                            return null;
+                                          },
+                                          onSubmitted: (_) => _onLogin(),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: InkWell(
+                                            onTap: _onForgotPassword,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 2,
+                                                vertical: 4,
+                                              ),
+                                              child: Text(
+                                                'Mot de passe oublié ?',
+                                                style: TextStyle(
+                                                  color: AppColors.accentText,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    // --- BAS DU FORMULAIRE (Bouton) ---
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        top: 40.0,
+                                        bottom: 20,
+                                      ),
+                                      child: _buildLoginButton(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
 
               // Footer
@@ -925,6 +711,30 @@ class _LoginState extends State<Login> {
         borderSide: BorderSide(color: color, width: width),
       );
 
+  // Widget _buildLoginButton() {
+  //   if (_isLoading) {
+  //     return Container(
+  //       height: 54,
+  //       decoration: BoxDecoration(
+  //         gradient: AppColors.buttonGradient,
+  //         borderRadius: BorderRadius.circular(12),
+  //       ),
+  //       child: const Center(
+  //         child: SizedBox(
+  //           width: 24,
+  //           height: 24,
+  //           child: CircularProgressIndicator(
+  //             strokeWidth: 2.5,
+  //             color: AppColors.white,
+  //           ),
+  //         ),
+  //       ),
+  //     );
+  //   }
+
+  //   return GradientButton(label: 'Se connecter', onPressed: _onLogin);
+  // }
+
   Widget _buildLoginButton() {
     if (_isLoading) {
       return Container(
@@ -940,6 +750,26 @@ class _LoginState extends State<Login> {
             child: CircularProgressIndicator(
               strokeWidth: 2.5,
               color: AppColors.white,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_secondesRestantes > 0) {
+      return Container(
+        height: 54,
+        decoration: BoxDecoration(
+          color: AppColors.textMuted.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Text(
+            'Patientez $_secondesRestantes s…',
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
             ),
           ),
         ),

@@ -55,6 +55,7 @@ class Billet {
     this.codes = const [],
     this.valideJusqua,
     this.aAvis = false,
+    this.qrToken = '',
   });
 
   final String reference;
@@ -70,6 +71,7 @@ class Billet {
   final DateTime datePaiement;
   final DepartGare? gare;
   final List<String> voyageurs;
+  final String qrToken;
 
   /// Statut officiel du serveur : valide, utilise, annule, rembourse, en_attente_paiement.
   final String statut;
@@ -84,18 +86,18 @@ class Billet {
   final bool aAvis;
   //
   /// Un billet valide peut être reporté tant que sa durée de validité n'est pas écoulée.
-  bool get peutEtreReporte =>
-      statut == 'valide' &&
-      DateTime.now().isBefore(
-        DateTime(
-          dateValidite.year,
-          dateValidite.month,
-          dateValidite.day,
-          23,
-          59,
-          59,
-        ),
-      );
+  // bool get peutEtreReporte =>
+  //     statut == 'valide' &&
+  //     DateTime.now().isBefore(
+  //       DateTime(
+  //         dateValidite.year,
+  //         dateValidite.month,
+  //         dateValidite.day,
+  //         23,
+  //         59,
+  //         59,
+  //       ),
+  //     );
 
   // DateTime get dateValidite => datePaiement.add(const Duration(days: 15));
   /// Dernier jour d'utilisation : 12 jours après l'achat, jamais avant le jour du voyage.
@@ -117,14 +119,42 @@ class Billet {
     return DateTime(dateVoyage.year, dateVoyage.month, dateVoyage.day, h, m);
   }
 
-  bool get estAVenir =>
-      (statut == 'valide' || statut == 'en_attente_paiement') &&
-      DateTime.now().isBefore(dateHeureVoyage);
+  /// Une gare ne se note qu'après le départ, et pas pour un billet annulé,
+  /// remboursé ou jamais payé.
+  DateTime get finValidite => DateTime(
+    dateValidite.year,
+    dateValidite.month,
+    dateValidite.day,
+    23,
+    59,
+    59,
+  );
 
+  /// « À venir » : le billet peut encore servir (valide et validité non écoulée),
+  /// même si le départ choisi est passé sans que le client ait voyagé.
+  bool get estAVenir {
+    if (statut == 'valide') return DateTime.now().isBefore(finValidite);
+    if (statut == 'en_attente_paiement') {
+      return DateTime.now().isBefore(dateHeureVoyage);
+    }
+    return false;
+  }
+
+  /// Billet valide dont la validité est écoulée sans voyage.
+  bool get estExpire =>
+      statut == 'valide' && !DateTime.now().isBefore(finValidite);
+
+  /// Départ passé mais billet encore valable : le client peut le reporter.
+  bool get departManque =>
+      statut == 'valide' &&
+      estAVenir &&
+      DateTime.now().isAfter(dateHeureVoyage);
+
+  /// « Terminé » = le client a voyagé (embarqué). « Expiré » = validité écoulée sans voyage.
   String get statutLabel {
     switch (statut) {
       case 'utilise':
-        return 'Utilisé';
+        return 'Terminé';
       case 'annule':
         return 'Annulé';
       case 'rembourse':
@@ -132,16 +162,20 @@ class Billet {
       case 'en_attente_paiement':
         return 'En attente de paiement';
       default:
-        return estAVenir ? 'À venir' : 'Terminé';
+        if (estExpire) return 'Expiré';
+        return departManque ? 'À reporter' : 'À venir';
     }
   }
 
-  /// Une gare ne se note qu'après le départ, et pas pour un billet annulé,
-  /// remboursé ou jamais payé.
-  bool get peutEtreNote =>
-      (statut == 'valide' || statut == 'utilise') && !estAVenir;
+  /// Reporter n'est possible que pour un billet valide dans sa durée de validité.
+  bool get peutEtreReporte => statut == 'valide' && estAVenir;
 
-  String get qrData => reference;
+  /// On ne note une gare qu'après avoir réellement voyagé.
+  bool get peutEtreNote => statut == 'utilise';
+
+  // String get qrData => reference;
+  /// Le code QR contient la référence signée par le serveur (anciens billets : la référence seule).
+  String get qrData => qrToken.isNotEmpty ? qrToken : reference;
 
   /// Un code court et unique par voyageur. Ce sont les codes officiels du
   /// serveur ; le calcul local ne sert que pour les anciens billets
@@ -183,6 +217,7 @@ class Billet {
     'codes': codes,
     'valideJusqua': valideJusqua,
     'aAvis': aAvis,
+    'qrToken': qrToken,
   };
 
   static Billet fromMap(Map<String, dynamic> map) {
@@ -198,6 +233,7 @@ class Billet {
 
     return Billet(
       reference: map['reference'] as String,
+      qrToken: map['qrToken']?.toString() ?? '',
       compagnie: compagnie,
       depart: map['depart'] as String,
       arrivee: map['arrivee'] as String,
@@ -253,6 +289,7 @@ class Billet {
 
     return Billet(
       reference: '${j['reference']}',
+      qrToken: j['qr_token']?.toString() ?? '',
       compagnie: compagnie,
       depart: '${j['depart'] ?? ''}',
       arrivee: '${j['arrivee'] ?? ''}',

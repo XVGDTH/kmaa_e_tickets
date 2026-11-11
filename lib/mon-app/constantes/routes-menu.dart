@@ -69,6 +69,9 @@ class AppRoutes {
       Compagnie? compagnie;
       var nom = '';
       var prenom = '';
+      String? depart;
+      String? destination;
+      int? voyageurs;
 
       if (args is Map) {
         compagnie = args['compagnie'] is Compagnie
@@ -76,6 +79,10 @@ class AppRoutes {
             : null;
         nom = args['nom']?.toString() ?? '';
         prenom = args['prenom']?.toString() ?? '';
+        // « Refaire mon dernier voyage » : valeurs du billet précédent.
+        depart = args['depart']?.toString();
+        destination = args['destination']?.toString();
+        voyageurs = int.tryParse('${args['voyageurs'] ?? ''}');
       } else if (args is Compagnie) {
         compagnie = args;
       }
@@ -89,6 +96,9 @@ class AppRoutes {
           compagnie: compagnie!,
           lastName: nom,
           firstName: prenom,
+          departInitial: depart,
+          destinationInitiale: destination,
+          voyageursInitial: voyageurs,
         ),
       );
     }

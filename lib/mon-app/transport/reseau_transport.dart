@@ -6,6 +6,7 @@ import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_saramaya.dart';
 import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_staf.dart';
 import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_tcv.dart';
 import 'package:kmaa_e_tickets/mon-app/data_compagnies/data_tsr.dart';
+import 'package:kmaa_e_tickets/mon-app/tarifs/tarifs.dart';
 
 /// Une gare précise proposant un trajet, avec ses propres horaires et
 
@@ -22,6 +23,7 @@ class DepartGare {
     this.routeId,
     this.gareId,
     this.disponibilites = const {},
+    this.frais = 0,
   });
 
   final String quartier;
@@ -32,6 +34,11 @@ class DepartGare {
   final String adresse;
   final double latitude;
   final double longitude;
+
+  /// Frais de service envoyés par le serveur pour ce départ (0 = non fourni).
+  final int frais;
+
+  int get fraisAPayer => frais > 0 ? frais : Tarif.fraisParDefaut(prixTicket);
 
   /// Identifiants côté serveur (null pour les données locales).
   final int? routeId;
@@ -60,6 +67,7 @@ class DepartGare {
       routeId: (j['route_id'] as num?)?.toInt(),
       gareId: (j['gare_id'] as num?)?.toInt(),
       disponibilites: dispo,
+      frais: (j['frais'] as num?)?.toInt() ?? 0,
     );
   }
 }

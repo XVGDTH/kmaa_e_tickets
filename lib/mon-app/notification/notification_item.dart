@@ -65,6 +65,9 @@ class NotificationItem {
       'rappel': NotifType.rappel,
       'avis': NotifType.avis,
       'promo': NotifType.promo,
+
+      'offre': NotifType.promo,
+      'validite': NotifType.rappel,
     };
     return NotificationItem(
       id: '${j['id']}',

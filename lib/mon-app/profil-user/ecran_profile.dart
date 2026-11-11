@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
+import 'package:kmaa_e_tickets/mon-app/assistance/centre_aide.dart';
 import 'package:kmaa_e_tickets/mon-app/billet/billet.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/menu.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/routes-menu.dart';
+import 'package:kmaa_e_tickets/mon-app/marketing/offres_whatsapp.dart';
 import 'package:kmaa_e_tickets/mon-app/profil-user/profil_user.dart';
 import 'package:kmaa_e_tickets/mon-app/service_client/service_client.dart';
 
@@ -46,20 +48,38 @@ class ProfilScreen extends StatelessWidget {
                       'Moyens de paiement utilisés',
                       () => _showMoyensPaiement(context),
                     ),
+                    _buildTile(
+                      Icons.support_agent_outlined,
+                      'Centre d\'aide',
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const CentreAideScreen(),
+                        ),
+                      ),
+                    ),
                   ]),
                   const SizedBox(height: 20),
                   _buildSection('Application', [
+                    // const TuileOffresWhatsapp(),
+                    const TuileOffres(
+                      canal: 'app',
+                      titre: 'Offres dans l\'application',
+                      sousTitre: 'Recevoir les offres dans mes notifications',
+                      icone: Icons.notifications_active_outlined,
+                    ),
+                    const TuileOffres(
+                      canal: 'whatsapp',
+                      titre: 'Offres par WhatsApp',
+                      sousTitre: 'Recevoir les offres de mes compagnies',
+                      icone: Icons.campaign_outlined,
+                    ),
                     _buildTile(
                       Icons.language_outlined,
                       'Langue',
                       () {},
                       trailing: 'Français',
                     ),
-                    // _buildTile(
-                    //   Icons.help_outline,
-                    //   'Aide & Support',
-                    //   () => _showAide(context),
-                    // ),
+
                     _buildTile(
                       Icons.headset_mic_outlined,
                       'Service client',

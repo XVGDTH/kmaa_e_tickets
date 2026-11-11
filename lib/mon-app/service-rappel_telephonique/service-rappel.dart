@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
 import 'package:kmaa_e_tickets/mon-app/billet/billet.dart';
 import 'package:kmaa_e_tickets/mon-app/notation_gares/notation_gares.dart';
 import 'package:kmaa_e_tickets/mon-app/service-rappel_telephonique/appel_entrant.dart';
@@ -46,20 +48,21 @@ class AlertService {
 
     if (kIsWeb) {
       unawaited(
-        _configurerTts()
-            .timeout(const Duration(seconds: 5))
-            .catchError((Object error, StackTrace stackTrace) {
-              FlutterError.reportError(
-                FlutterErrorDetails(
-                  exception: error,
-                  stack: stackTrace,
-                  library: 'AlertService',
-                  context: ErrorDescription(
-                    'while configuring web speech synthesis',
-                  ),
-                ),
-              );
-            }),
+        _configurerTts().timeout(const Duration(seconds: 5)).catchError((
+          Object error,
+          StackTrace stackTrace,
+        ) {
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: error,
+              stack: stackTrace,
+              library: 'AlertService',
+              context: ErrorDescription(
+                'while configuring web speech synthesis',
+              ),
+            ),
+          );
+        }),
       );
     } else {
       await _configurerTts();
@@ -139,26 +142,6 @@ class AlertService {
 
   // ───────────── Jour J : appel vocal répété ─────────────
 
-  // void _verifier() {
-  //   final now = DateTime.now();
-  //   for (final b in TicketStore.instance.billets.value) {
-  //     if (!_memeJour(b.dateVoyage, now)) continue;
-  //     if (_silencePourAujourdhui.contains(b.reference)) continue;
-
-  //     final depart = b.dateHeureVoyage;
-  //     final debut = depart.subtract(kFenetreAvantDepart);
-  //     final fin = depart.add(kFenetreApresDepart);
-  //     if (now.isBefore(debut) || now.isAfter(fin)) continue;
-
-  //     final dernier = _dernierAppel[b.reference];
-  //     if (dernier == null || now.difference(dernier) >= kIntervalleAppel) {
-  //       _dernierAppel[b.reference] = now;
-  //       _declencherAppel(b);
-  //     }
-  //   }
-  //   // affichage des avis
-  //   _verifierAvis();
-  // }
   void _verifier() {
     final now = DateTime.now();
     _synchroniserSiNecessaire(now);
@@ -209,7 +192,11 @@ class AlertService {
           billet: b,
           onSpeak: _parler,
           onIgnorer: () {},
-          onArrive: () => _silencePourAujourdhui.add(b.reference),
+          // onArrive: () => _silencePourAujourdhui.add(b.reference),
+          onArrive: () {
+            _silencePourAujourdhui.add(b.reference);
+            _signalerPresence(b);
+          },
         ),
       ),
     );
@@ -325,5 +312,39 @@ class AlertService {
     }
     _derniereSync = now;
     TicketStore.instance.rafraichir();
+  }
+
+  /// Le client a tapé « arrivé » : on prévient la gare. La position n'est envoyée que
+  /// s'il l'autorise ; sans elle, le signal est quand même enregistré (non vérifié).
+  Future<void> _signalerPresence(Billet b) async {
+    double? latitude;
+    double? longitude;
+
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse) {
+        final position = await Geolocator.getCurrentPosition().timeout(
+          const Duration(seconds: 8),
+        );
+        latitude = position.latitude;
+        longitude = position.longitude;
+      }
+    } catch (_) {
+      // pas de position : le signal part sans coordonnées
+    }
+
+    try {
+      await ApiService.instance.signalerPresence(
+        reference: b.reference,
+        latitude: latitude,
+        longitude: longitude,
+      );
+    } catch (_) {
+      // le signal n'est qu'une aide pour l'agent : on ne dérange pas le client en cas d'échec
+    }
   }
 }

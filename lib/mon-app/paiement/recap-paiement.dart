@@ -33,10 +33,22 @@ class RecapPaiement extends StatelessWidget {
   final String? pays;
   final TicketSelection ticketSelection;
 
+
   int get _prixUnitaire =>
       gare?.prixTicket ?? prixInternational(compagnie.id, destination);
   int get _montantTransport => _prixUnitaire * ticketSelection.count;
-  int get _total => _montantTransport + Tarif.taxeFixe;
+
+  /// Frais de service : ceux du serveur pour ce départ ; à défaut, la même grille que le serveur.
+  int get _taxe {
+    final fournis = gare?.frais ?? 0;
+    if (fournis > 0) return fournis;
+    return Tarif.fraisParDefaut(
+      _prixUnitaire,
+      international: tripType == TripType.international,
+    );
+  }
+
+  int get _total => _montantTransport + _taxe;
 
   void _onPay(BuildContext context) {
     Navigator.of(context).push(
@@ -49,7 +61,8 @@ class RecapPaiement extends StatelessWidget {
           hour: hour,
           travelersCount: ticketSelection.count,
           montantTransport: _montantTransport,
-          taxe: Tarif.taxeFixe,
+          // taxe: Tarif.taxeFixe,
+          taxe: _taxe,
           voyageurNames: ticketSelection.names,
           gare: gare,
         ),
@@ -309,7 +322,8 @@ class RecapPaiement extends StatelessWidget {
             'Ticket × ${ticketSelection.count} (${Tarif.format(_prixUnitaire)} l\'unité)',
             _montantTransport,
           ),
-          _buildInvoiceRow('Taxe (montant unique)', Tarif.taxeFixe),
+          // _buildInvoiceRow('Taxe (montant unique)', Tarif.taxeFixe),
+          _buildInvoiceRow('Frais de service (montant unique)', _taxe),
           const Divider(height: 24, color: AppColors.border),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

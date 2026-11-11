@@ -17,11 +17,24 @@ class CompagnieDetail extends StatefulWidget {
     required this.compagnie,
     this.lastName = '',
     this.firstName = '',
+    this.departInitial,
+    this.destinationInitiale,
+    this.voyageursInitial,
+    this.nomsInitiaux = const [],
   });
 
   final Compagnie compagnie;
   final String lastName;
   final String firstName;
+  final List<String> nomsInitiaux;
+
+  /// « Refaire mon dernier voyage » : valeurs reprises du billet précédent (facultatives).
+  final String? departInitial;
+  final String? destinationInitiale;
+  final int? voyageursInitial;
+  //
+  //
+  //
 
   @override
   State<CompagnieDetail> createState() => _CompagnieDetailState();
@@ -50,6 +63,7 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
   bool _chargementRoutes = false;
   String? _erreurRoutes;
   int _requete = 0; // ignore la réponse d'une recherche déjà remplacée
+  bool _prefillApplique = false; // le préremplissage ne s'applique qu'une fois
 
   TicketSelection _ticketSelection = const TicketSelection(
     count: 1,
@@ -115,6 +129,15 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
         _villesDepart = villes;
         _villesChargees = true;
       });
+
+      // « Refaire mon dernier voyage » : on repart de la ville de départ du billet précédent.
+      final voulu = widget.departInitial?.trim().toLowerCase();
+      if (voulu != null && voulu.isNotEmpty && _departVille == null) {
+        final trouve = villes
+            .where((v) => v.trim().toLowerCase() == voulu)
+            .firstOrNull;
+        if (trouve != null) _onDepartChanged(trouve);
+      }
     } on ApiException catch (e) {
       if (!mounted || type != _tripType) return;
       setState(() {
@@ -157,9 +180,23 @@ class _CompagnieDetailState extends State<CompagnieDetail> {
           .where((r) => r.gares.isNotEmpty)
           .toList();
 
+      // « Refaire mon dernier voyage » : on met en avant la destination du billet précédent.
+      String? destinationChoisie;
+      if (!_prefillApplique) {
+        final voulue = widget.destinationInitiale?.trim().toLowerCase();
+        if (voulue != null && voulue.isNotEmpty) {
+          destinationChoisie = routes
+              .where((r) => r.destination.trim().toLowerCase() == voulue)
+              .firstOrNull
+              ?.destination;
+        }
+        _prefillApplique = true;
+      }
+
       setState(() {
         _routes = routes;
         _chargementRoutes = false;
+        if (destinationChoisie != null) _destination = destinationChoisie;
       });
     } on ApiException catch (e) {
       if (!mounted || numero != _requete) return;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kmaa_e_tickets/mon-app/Apis_service/apis_service.dart';
+import 'package:kmaa_e_tickets/mon-app/bienvenue/bandeau_bienvenue.dart';
 import 'package:kmaa_e_tickets/mon-app/billet/billet.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/color.dart';
 import 'package:kmaa_e_tickets/mon-app/constantes/menu.dart';
@@ -8,6 +9,7 @@ import 'package:kmaa_e_tickets/mon-app/constantes/routes-menu.dart';
 import 'package:kmaa_e_tickets/mon-app/gares_favorites/favorites.dart';
 import 'package:kmaa_e_tickets/mon-app/home/compagnie.dart';
 import 'package:kmaa_e_tickets/mon-app/home/compagnie_card.dart';
+import 'package:kmaa_e_tickets/mon-app/marketing/offres_whatsapp.dart';
 import 'package:kmaa_e_tickets/mon-app/notation_gares/avis_banner.dart';
 import 'package:kmaa_e_tickets/mon-app/notification/notification_item.dart';
 import 'package:kmaa_e_tickets/mon-app/service-rappel_telephonique/bandeau_rappel.dart';
@@ -31,20 +33,26 @@ class _HomeState extends State<Home> {
   int _selectedDay = 0;
   bool _favorisUniquement = false;
   Set<String>? _compagniesActives; // null = pas encore connu (ou hors ligne)
+  List<({String compagnie, int billets})> _preferees = [];
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _days = List.generate(7, (i) => DateTime(now.year, now.month, now.day + i));
-    // TicketStore.instance
-    //     .rafraichir(); // statuts à jour, billets d'un autre appareil
+
     TicketStore.instance.rafraichir().then(
       (_) => AlertService.instance
           .replanifierTous(), // rappels à jour après chaque synchronisation
     );
     _chargerCompagnies();
+    _chargerPreferees();
     NotificationStore.instance.rafraichir();
+
+    // Une seule fois, aux clients qui n'ont jamais répondu : accepter ou non les offres.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) PromptOffres.afficherSiNecessaire(context);
+    });
   }
 
   @override
@@ -69,18 +77,31 @@ class _HomeState extends State<Home> {
 
   String get _greeting => DateTime.now().hour < 18 ? 'Bonjour !' : 'Bonsoir !';
 
+  /// Les compagnies préférées du client passent en premier.
   List<Compagnie> _filtered(Set<String> favIds) {
     var list = kCompagnies.where((c) => c.name.toLowerCase().contains(_query));
     final actives = _compagniesActives;
     if (actives != null) list = list.where((c) => actives.contains(c.id));
     if (_favorisUniquement) list = list.where((c) => favIds.contains(c.id));
-    return list.toList();
+
+    final resultat = list.toList();
+
+    if (_preferees.isNotEmpty && _query.isEmpty) {
+      final rang = {
+        for (var i = 0; i < _preferees.length; i++) _preferees[i].compagnie: i,
+      };
+      final ordreInitial = {
+        for (var i = 0; i < resultat.length; i++) resultat[i].id: i,
+      };
+
+      resultat.sort((a, b) {
+        final c = (rang[a.id] ?? 999).compareTo(rang[b.id] ?? 999);
+        return c != 0 ? c : ordreInitial[a.id]!.compareTo(ordreInitial[b.id]!);
+      });
+    }
+
+    return resultat;
   }
-  // List<Compagnie> _filtered(Set<String> favIds) {
-  //   var list = kCompagnies.where((c) => c.name.toLowerCase().contains(_query));
-  //   if (_favorisUniquement) list = list.where((c) => favIds.contains(c.id));
-  //   return list.toList();
-  // }
 
   void _onCompagnieTap(Compagnie c) {
     Navigator.of(context).pushNamed(
@@ -122,6 +143,16 @@ class _HomeState extends State<Home> {
     }
   }
 
+  Future<void> _chargerPreferees() async {
+    try {
+      final liste = await ApiService.instance.mesCompagniesPreferees();
+      if (!mounted) return;
+      setState(() => _preferees = liste);
+    } catch (_) {
+      // hors ligne : l'ordre habituel reste
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -141,11 +172,15 @@ class _HomeState extends State<Home> {
                       child: Column(
                         children: [
                           _buildHeader(),
+                          const BandeauBienvenue(),
                           const ReminderBanner(),
                           const AvisBanner(),
                           const SizedBox(height: 20),
                           _buildSearchBar(),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 20),
+                          _buildDernierVoyage(),
+                          _buildVosCompagnies(),
+                          const SizedBox(height: 4),
                           _buildSectionTitle(favIds.isNotEmpty),
                           const SizedBox(height: 12),
                         ],
@@ -295,6 +330,216 @@ class _HomeState extends State<Home> {
             ),
           ),
           const Icon(Icons.search, color: AppColors.textDark, size: 24),
+        ],
+      ),
+    );
+  }
+
+  /// « Refaire mon dernier voyage » : repart du billet le plus récent.
+  Widget _buildDernierVoyage() {
+    return ValueListenableBuilder<List<Billet>>(
+      valueListenable: TicketStore.instance.billets,
+      builder: (context, billets, _) {
+        if (_query.isNotEmpty || _favorisUniquement) {
+          return const SizedBox.shrink();
+        }
+
+        final valides = billets
+            .where(
+              (b) =>
+                  b.statut != 'annule' &&
+                  b.statut != 'rembourse' &&
+                  b.statut != 'en_attente_paiement',
+            )
+            .toList();
+        if (valides.isEmpty) return const SizedBox.shrink();
+
+        final b =
+            valides.first; // le magasin trie par date de paiement décroissante
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => Navigator.of(context).pushNamed(
+              '/compagnie/${b.compagnie.id}',
+              arguments: {
+                'compagnie': b.compagnie,
+                'nom': widget.lastName,
+                'prenom': widget.firstName,
+                'depart': b.depart,
+                'destination': b.arrivee,
+                'voyageurs': b.travelersCount,
+              },
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: const BoxDecoration(
+                      gradient: AppColors.buttonGradient,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.replay_rounded,
+                      color: AppColors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Refaire mon dernier voyage',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            color: AppColors.textDark,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${b.depart} → ${b.arrivee} · ${b.compagnie.name} · ${b.travelersCount} voyageur(s)',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: AppColors.textMuted),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// « Vos compagnies » : les trois compagnies que le client utilise le plus.
+  Widget _buildVosCompagnies() {
+    if (_query.isNotEmpty || _favorisUniquement || _preferees.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final cartes = <(Compagnie, int)>[];
+    for (final p in _preferees.take(3)) {
+      final c = kCompagnies.where((x) => x.id == p.compagnie).firstOrNull;
+      if (c != null) cartes.add((c, p.billets));
+    }
+    if (cartes.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Vos compagnies',
+            style: TextStyle(
+              color: AppColors.textDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 92,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: cartes.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (_, i) {
+                final (c, billets) = cartes[i];
+                return InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => _onCompagnieTap(c),
+                  child: Container(
+                    width: 190,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: i == 0 ? AppColors.secondary : AppColors.border,
+                        width: i == 0 ? 1.6 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          clipBehavior: Clip.antiAlias,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.background,
+                          ),
+                          child: c.image == null
+                              ? const Icon(
+                                  Icons.directions_bus_rounded,
+                                  color: AppColors.secondary,
+                                )
+                              : Image.asset(
+                                  c.image!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => const Icon(
+                                    Icons.directions_bus_rounded,
+                                    color: AppColors.secondary,
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                c.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                  color: AppColors.textDark,
+                                ),
+                              ),
+                              Text(
+                                i == 0
+                                    ? 'Votre préférée · $billets billet(s)'
+                                    : '$billets billet(s)',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );

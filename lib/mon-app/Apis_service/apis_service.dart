@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:kmaa_e_tickets/mon-app/assistance/assistance_models.dart';
 
 /// Erreur du serveur ou du réseau, avec un message lisible par l'utilisateur.
 class ApiException implements Exception {
@@ -50,6 +51,15 @@ class ApiService {
   /// Dernier message d'erreur de login / vérification OTP (null si tout va bien).
   String? derniereErreur;
   String? derniereErreurCode;
+  // nouvelles logique qui entraine la fermture du formulaire apres plusieurs tentatives
+
+  int? tentativesRestantes;
+
+  /// Secondes à attendre avant de retenter (rempli sur 429 avec code 'trop_de_tentatives').
+  int? delaiAvantReessai;
+
+  /// Vrai si le compte est verrouillé et doit passer par le reset OTP.
+  bool compteVerrouilleOtpRequis = false;
 
   /// Appelé quand le serveur refuse le jeton (401) : retour à l'accueil.
   VoidCallback? onSessionExpiree;
@@ -196,6 +206,10 @@ class ApiService {
   Future<bool> _authentifier(String chemin, Map<String, dynamic> corps) async {
     derniereErreur = null;
     derniereErreurCode = null;
+    delaiAvantReessai = null;
+    tentativesRestantes = null;
+    compteVerrouilleOtpRequis = false;
+
     try {
       final data = await _appel('POST', chemin, auth: false, corps: corps);
       if (data is Map<String, dynamic> && data['token'] is String) {
@@ -207,6 +221,23 @@ class ApiService {
     } on ApiException catch (e) {
       derniereErreur = e.message;
       derniereErreurCode = e.code;
+
+      if (e.code == 'compte_verrouille_otp_requis') {
+        compteVerrouilleOtpRequis = true;
+      }
+
+      // Lecture du délai de pause (30s)
+      final retry = e.corps?['retry_after'];
+      if (retry is num && retry > 0) {
+        delaiAvantReessai = retry.toInt();
+      }
+
+      // Lecture des tentatives restantes (envoyé par le backend sur erreur 401)
+      final restantes = e.corps?['tentatives_restantes'];
+      if (restantes is num) {
+        tentativesRestantes = restantes.toInt();
+      }
+
       if (e.statusCode != null && e.statusCode! < 500) return false;
       rethrow;
     }
@@ -356,6 +387,151 @@ class ApiService {
     final billet = data is Map ? data['billet'] : null;
     if (billet is! Map) throw ApiException('Réponse inattendue du serveur.');
     return Map<String, dynamic>.from(billet);
+  }
+
+  /// Signale la présence du client à la gare (position facultative, jamais obligatoire).
+  Future<void> signalerPresence({
+    required String reference,
+    double? latitude,
+    double? longitude,
+  }) async {
+    await _appel(
+      'POST',
+      '/billets/${Uri.encodeComponent(reference)}/presence',
+      corps: {'latitude': ?latitude, 'longitude': ?longitude},
+    );
+  }
+
+  /// Offres par WhatsApp : l'état du consentement du client.
+  /// Offres : l'état des deux choix du client (WhatsApp et notifications de l'application).
+  // Future<({bool accepte, bool app, bool dejaRepondu})> etatMarketing() async {
+  //   final r = await _appel('GET', '/me/marketing');
+  //   return (
+  //     accepte: r['accepte'] == true,
+  //     app: r['app'] != false,
+  //     dejaRepondu: r['deja_repondu'] == true,
+  //   );
+  // }
+
+  /// source : 'inscription', 'profil' ou 'invite'.
+  /// canal : 'whatsapp' ou 'app'. source : 'inscription', 'profil' ou 'invite'.
+  // Future<void> definirMarketing(bool accepte, {String source = 'profil', String canal = 'whatsapp'}) async {
+  //   await _appel('POST', '/me/marketing', corps: {'accepte': accepte, 'source': source, 'canal': canal});
+  // }
+
+  /// Offres : l'état des deux choix du client (WhatsApp et notifications de l'application).
+  Future<({bool accepte, bool app, bool dejaRepondu})> etatMarketing() async {
+    final r = await _appel('GET', '/me/marketing');
+    return (
+      accepte: r['accepte'] == true,
+      app: r['app'] != false,
+      dejaRepondu: r['deja_repondu'] == true,
+    );
+  }
+
+  /// canal : 'whatsapp' ou 'app'. source : 'inscription', 'profil' ou 'invite'.
+  Future<void> definirMarketing(
+    bool accepte, {
+    String source = 'profil',
+    String canal = 'whatsapp',
+  }) async {
+    await _appel(
+      'POST',
+      '/me/marketing',
+      corps: {'accepte': accepte, 'source': source, 'canal': canal},
+    );
+  }
+
+  /// Les compagnies du client, de la préférée à la moins utilisée.
+  Future<List<({String compagnie, int billets})>>
+  mesCompagniesPreferees() async {
+    final r = await _appel('GET', '/me/preferences');
+    return ((r['compagnies'] as List?) ?? const [])
+        .map(
+          (e) => (
+            compagnie: '${e['compagnie']}',
+            billets: (e['billets'] as num?)?.toInt() ?? 0,
+          ),
+        )
+        .toList();
+  }
+
+  /// Les compagnies du client, de la préférée à la moins utilisée.
+
+  //-----------------------demande d'assistance et d'appel d'aides--------
+
+  Future<({List<FaqItem> faq, Map<String, String> themes})>
+  assistanceFaq() async {
+    final r = await _appel('GET', '/assistance/faq');
+    return (
+      faq: ((r['faq'] as List?) ?? const [])
+          .map((e) => FaqItem.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+      themes: Map<String, String>.from(
+        ((r['themes'] as Map?) ?? const {}).map(
+          (k, v) => MapEntry(k.toString(), v.toString()),
+        ),
+      ),
+    );
+  }
+
+  Future<List<DemandeAssistance>> mesDemandes() async {
+    final r = await _appel('GET', '/assistance/demandes');
+    return ((r['demandes'] as List?) ?? const [])
+        .map(
+          (e) =>
+              DemandeAssistance.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
+        .toList();
+  }
+
+  Future<DemandeAssistance> creerDemande({
+    required String theme,
+    required String objet,
+    required String message,
+    String? billetReference,
+    bool rappel = false,
+  }) async {
+    final r = await _appel(
+      'POST',
+      '/assistance/demandes',
+      corps: {
+        'theme': theme,
+        'objet': objet,
+        'message': message,
+        'billet_reference': ?billetReference,
+        'rappel': rappel,
+      },
+    );
+    return DemandeAssistance.fromJson(
+      Map<String, dynamic>.from(r['demande'] as Map),
+    );
+  }
+
+  Future<DemandeAssistance> detailDemande(int id) async {
+    final r = await _appel('GET', '/assistance/demandes/$id');
+    return DemandeAssistance.fromJson(
+      Map<String, dynamic>.from(r['demande'] as Map),
+    );
+  }
+
+  Future<DemandeAssistance> repondreDemande(int id, String corps) async {
+    final r = await _appel(
+      'POST',
+      '/assistance/demandes/$id/messages',
+      corps: {'corps': corps},
+    );
+    return DemandeAssistance.fromJson(
+      Map<String, dynamic>.from(r['demande'] as Map),
+    );
+  }
+
+  Future<void> noterDemande(int id, int note) async {
+    await _appel(
+      'POST',
+      '/assistance/demandes/$id/note',
+      corps: {'note': note},
+    );
   }
 
   // ───────────── Notifications (conservées sur le serveur) ─────────────

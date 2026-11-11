@@ -151,8 +151,9 @@ class ConditionsScreen extends StatelessWidget {
     ),
     (
       'Frais de service',
-      'Chaque achat donne lieu à des frais de service de 300 FCFA, payés une seule fois quel que soit '
-          'le nombre de billets. Tout frais payé est non remboursable.',
+      'Chaque achat donne lieu à des frais de service, payés une seule fois quel que soit le nombre de billets. '
+          'Leur montant dépend du trajet et de la compagnie : il est indiqué avant le paiement. '
+          'Tout frais payé est non remboursable.',
       Icons.payments_outlined,
     ),
     (
